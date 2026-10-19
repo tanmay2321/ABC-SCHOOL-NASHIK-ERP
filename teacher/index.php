@@ -30,6 +30,30 @@ $recent_students = $pdo->query("
     ORDER BY s.id DESC LIMIT 4
 ")->fetchAll();
 
+// Assignments stats for this teacher
+$asgn_stats = $pdo->prepare("
+    SELECT 
+        COUNT(DISTINCT a.id) as total_assignments,
+        COUNT(s.id) as total_submissions,
+        SUM(CASE WHEN s.status != 'Graded' THEN 1 ELSE 0 END) as pending_grades
+    FROM assignments a
+    LEFT JOIN assignment_submissions s ON s.assignment_id = a.id
+    WHERE a.teacher_id = ?
+");
+$asgn_stats->execute([$teacher_user_id]);
+$asgn_data = $asgn_stats->fetch();
+$total_assignments = intval($asgn_data['total_assignments'] ?? 0);
+$total_submissions = intval($asgn_data['total_submissions'] ?? 0);
+$pending_grades = intval($asgn_data['pending_grades'] ?? 0);
+
+// Today's lectures
+$today_day = date('l');
+$tname_param = '%' . ($teacher_profile['full_name'] ?? '') . '%';
+$dept_param = '%' . ($teacher_profile['department'] ?? '') . '%';
+$ttStmt = $pdo->prepare("SELECT COUNT(*) FROM timetables WHERE (teacher_name LIKE ? OR subject LIKE ?) AND day_of_week = ?");
+$ttStmt->execute([$tname_param, $dept_param, $today_day]);
+$today_lectures = intval($ttStmt->fetchColumn());
+
 $flash = get_flash();
 ?>
 
@@ -159,6 +183,28 @@ require_once __DIR__ . '/../includes/sidebar.php';
                         <p class="text-xs text-slate-500 mt-1">Submit test scores and subject marks with auto-calculated grades.</p>
                     </div>
                     <span class="text-xs font-bold text-emerald-700 mt-4 flex items-center">Open Gradebook &rarr;</span>
+                </a>
+
+                <a href="/teacher/assignments.php" class="p-4 rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50/40 border border-purple-200/60 hover:border-purple-400 transition group flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center mb-3 shadow-md shadow-purple-500/20 group-hover:scale-105 transition">
+                            <i class="fa-solid fa-book-bookmark text-base"></i>
+                        </div>
+                        <h4 class="text-sm font-bold text-slate-900">Homework &amp; Assignments</h4>
+                        <p class="text-xs text-slate-500 mt-1"><?= $total_assignments ?> posted &bull; <?= $pending_grades ?> submissions pending review.</p>
+                    </div>
+                    <span class="text-xs font-bold text-purple-700 mt-4 flex items-center">Review Submissions &rarr;</span>
+                </a>
+
+                <a href="/teacher/timetable.php" class="p-4 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50/40 border border-amber-200/60 hover:border-amber-400 transition group flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center mb-3 shadow-md shadow-amber-500/20 group-hover:scale-105 transition">
+                            <i class="fa-solid fa-calendar-week text-base"></i>
+                        </div>
+                        <h4 class="text-sm font-bold text-slate-900">Teaching Timetable</h4>
+                        <p class="text-xs text-slate-500 mt-1">Check weekly schedule &bull; <?= $today_lectures ?> lecture(s) today (<?= $today_day ?>).</p>
+                    </div>
+                    <span class="text-xs font-bold text-amber-700 mt-4 flex items-center">View Schedule &rarr;</span>
                 </a>
             </div>
 

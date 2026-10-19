@@ -47,6 +47,21 @@ $avg_marks = round((float)$avgStmt->fetchColumn(), 1);
 // Recent Notices
 $notices = $pdo->query("SELECT * FROM notices WHERE audience IN ('all', 'students') ORDER BY id DESC LIMIT 3")->fetchAll();
 
+// Student Fee Pending Calculation
+$total_invoiced_stu = $pdo->prepare("SELECT COALESCE(SUM(total_amount), 0) FROM fee_invoices WHERE student_id = ?");
+$total_invoiced_stu->execute([$student_id]);
+$stu_inv = floatval($total_invoiced_stu->fetchColumn());
+
+$total_paid_stu = $pdo->prepare("SELECT COALESCE(SUM(amount_paid), 0) FROM fee_payments WHERE student_id = ?");
+$total_paid_stu->execute([$student_id]);
+$stu_paid = floatval($total_paid_stu->fetchColumn());
+$stu_pending_fee = max(0, $stu_inv - $stu_paid);
+
+// Homework / Assignments Pending Count
+$asgn_due = $pdo->prepare("SELECT COUNT(*) FROM assignments a WHERE a.class = ? AND a.id NOT IN (SELECT assignment_id FROM assignment_submissions WHERE student_id = ?)");
+$asgn_due->execute([$student['class'] ?? '', $student_id]);
+$pending_homework = intval($asgn_due->fetchColumn());
+
 $flash = get_flash();
 ?>
 
@@ -149,6 +164,78 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
+    </div>
+
+    <!-- Student ERP Modules: Fees, Homework, Timetable -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">
+        <!-- Fees Card -->
+        <div class="p-5 rounded-2xl bg-gradient-to-br from-indigo-900 to-navy-900 text-white shadow-md flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between text-indigo-200">
+                    <span class="text-xs font-bold uppercase tracking-wider">Fee Account</span>
+                    <i class="fa-solid fa-receipt text-amber-400 text-lg"></i>
+                </div>
+                <div class="mt-2">
+                    <?php if ($stu_pending_fee > 0): ?>
+                        <div class="text-2xl font-black text-rose-300 font-['Outfit']">₹<?= number_format($stu_pending_fee) ?></div>
+                        <div class="text-xs text-indigo-200">Pending Balance Dues</div>
+                    <?php else: ?>
+                        <div class="text-2xl font-black text-emerald-400 font-['Outfit']">All Cleared</div>
+                        <div class="text-xs text-indigo-200">Paid: ₹<?= number_format($stu_paid) ?></div>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <div class="mt-4 pt-2 border-t border-indigo-800/80">
+                <a href="/student/fees.php" class="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center justify-between">
+                    <span>Pay Fees &amp; Receipts</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- Assignments Card -->
+        <div class="bg-white p-5 rounded-2xl border <?= $pending_homework > 0 ? 'border-amber-300 bg-amber-50/20' : 'border-slate-200' ?> shadow-sm hover:shadow transition flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase text-slate-400 tracking-wider">Homework &amp; Tasks</span>
+                    <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                        <i class="fa-solid fa-book-open-reader text-lg"></i>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <div class="text-2xl font-bold text-slate-900 font-['Outfit']"><?= $pending_homework ?> Tasks Due</div>
+                    <div class="text-xs text-slate-500">Class homework &amp; worksheets</div>
+                </div>
+            </div>
+            <div class="mt-4 pt-2 border-t border-slate-100">
+                <a href="/student/assignments.php" class="text-xs font-bold text-purple-600 hover:text-purple-800 flex items-center justify-between">
+                    <span>Submit Homework Files</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- Timetable Card -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow transition flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase text-slate-400 tracking-wider">Class Timetable</span>
+                    <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                        <i class="fa-solid fa-calendar-days text-lg"></i>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <div class="text-2xl font-bold text-slate-900 font-['Outfit']"><?= htmlspecialchars($student['class'] ?? 'Class') ?></div>
+                    <div class="text-xs text-slate-500">6 periods daily (Mon to Sat)</div>
+                </div>
+            </div>
+            <div class="mt-4 pt-2 border-t border-slate-100">
+                <a href="/student/timetable.php" class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center justify-between">
+                    <span>View Today's Lectures</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
     </div>
 
     <!-- Two Columns: Recent Grades & School Notices -->

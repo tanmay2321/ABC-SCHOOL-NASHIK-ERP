@@ -1,0 +1,6 @@
+ABC SCHOOL NASHIK
+Student: Aarav Patil (Roll 1001, Class 10-A)
+Subject: Mathematics Assignment
+Solutions for Chapter 4 & 8 exercises attached.
+- Derivation 1: sin^2(theta) + cos^2(theta) = 1 [Verified]
+- Quadratic Roots: x = (-b +/- sqrt(b^2 - 4ac)) / (2a) [Completed]

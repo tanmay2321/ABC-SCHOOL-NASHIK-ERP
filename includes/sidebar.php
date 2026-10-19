@@ -33,10 +33,28 @@ if ($role === 'admin') {
             'active' => strpos($current_uri, '/admin/students.php') !== false
         ],
         [
+            'title' => 'Fee Accounting & Invoices',
+            'url' => '/admin/fees.php',
+            'icon' => 'fa-solid fa-receipt',
+            'active' => strpos($current_uri, '/admin/fees.php') !== false
+        ],
+        [
             'title' => 'Notice Board',
             'url' => '/admin/notices.php',
             'icon' => 'fa-solid fa-bullhorn',
             'active' => strpos($current_uri, '/admin/notices.php') !== false
+        ],
+        [
+            'title' => 'Class Timetables',
+            'url' => '/admin/timetable.php',
+            'icon' => 'fa-solid fa-calendar-days',
+            'active' => strpos($current_uri, '/admin/timetable.php') !== false
+        ],
+        [
+            'title' => 'Leave Approvals',
+            'url' => '/admin/leaves.php',
+            'icon' => 'fa-solid fa-envelope-open-text',
+            'active' => strpos($current_uri, '/admin/leaves.php') !== false
         ],
         [
             'title' => 'System Settings',
@@ -72,6 +90,24 @@ if ($role === 'admin') {
             'active' => strpos($current_uri, '/teacher/marks.php') !== false
         ],
         [
+            'title' => 'Assignments & Homework',
+            'url' => '/teacher/assignments.php',
+            'icon' => 'fa-solid fa-book-bookmark',
+            'active' => strpos($current_uri, '/teacher/assignments.php') !== false
+        ],
+        [
+            'title' => 'Teaching Timetable',
+            'url' => '/teacher/timetable.php',
+            'icon' => 'fa-solid fa-calendar-week',
+            'active' => strpos($current_uri, '/teacher/timetable.php') !== false
+        ],
+        [
+            'title' => 'Apply for Leave',
+            'url' => '/teacher/leaves.php',
+            'icon' => 'fa-solid fa-calendar-minus',
+            'active' => strpos($current_uri, '/teacher/leaves.php') !== false
+        ],
+        [
             'title' => 'School Notices',
             'url' => '/teacher/notices.php',
             'icon' => 'fa-solid fa-bullhorn',
@@ -87,6 +123,18 @@ if ($role === 'admin') {
             'active' => strpos($current_uri, '/student/index.php') !== false || $current_uri === '/student/'
         ],
         [
+            'title' => 'Fee Portal & Receipts',
+            'url' => '/student/fees.php',
+            'icon' => 'fa-solid fa-wallet',
+            'active' => strpos($current_uri, '/student/fees.php') !== false
+        ],
+        [
+            'title' => 'Homework & Assignments',
+            'url' => '/student/assignments.php',
+            'icon' => 'fa-solid fa-book-open-reader',
+            'active' => strpos($current_uri, '/student/assignments.php') !== false
+        ],
+        [
             'title' => 'My Attendance',
             'url' => '/student/attendance.php',
             'icon' => 'fa-solid fa-calendar-check',
@@ -97,6 +145,18 @@ if ($role === 'admin') {
             'url' => '/student/report-card.php',
             'icon' => 'fa-solid fa-award',
             'active' => strpos($current_uri, '/student/report-card.php') !== false
+        ],
+        [
+            'title' => 'Class Timetable',
+            'url' => '/student/timetable.php',
+            'icon' => 'fa-solid fa-calendar-days',
+            'active' => strpos($current_uri, '/student/timetable.php') !== false
+        ],
+        [
+            'title' => 'Apply for Leave',
+            'url' => '/student/leaves.php',
+            'icon' => 'fa-solid fa-notes-medical',
+            'active' => strpos($current_uri, '/student/leaves.php') !== false
         ],
         [
             'title' => 'Circulars & Notices',

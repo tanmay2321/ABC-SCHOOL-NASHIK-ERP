@@ -47,6 +47,20 @@ $recent_teachers = $pdo->query("
 
 // Fetch Recent Notices
 $recent_notices = $pdo->query("SELECT * FROM notices ORDER BY id DESC LIMIT 3")->fetchAll();
+
+// Fetch Fee Accounting Metrics
+$fee_stats = $pdo->query("
+    SELECT 
+        COALESCE(SUM(total_amount), 0) as total_invoiced,
+        (SELECT COALESCE(SUM(amount_paid), 0) FROM fee_payments) as total_collected
+    FROM fee_invoices
+")->fetch();
+$total_invoiced = floatval($fee_stats['total_invoiced'] ?? 0);
+$total_collected = floatval($fee_stats['total_collected'] ?? 0);
+$total_pending_fee = max(0, $total_invoiced - $total_collected);
+
+// Fetch Pending Leaves
+$pending_leaves_count = $pdo->query("SELECT COUNT(*) FROM leave_applications WHERE status = 'Pending'")->fetchColumn();
 ?>
 
 <?php 
@@ -169,6 +183,69 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
+    </div>
+
+    <!-- ERP Financials & Operations Quick Summary -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">
+        <!-- Fees Collected -->
+        <div class="bg-gradient-to-br from-indigo-900 to-navy-900 p-5 rounded-2xl text-white shadow-md">
+            <div class="flex items-center justify-between text-indigo-200">
+                <span class="text-xs font-bold uppercase tracking-wider">Fee Collection</span>
+                <i class="fa-solid fa-receipt text-amber-400 text-lg"></i>
+            </div>
+            <p class="text-2xl font-black mt-2 font-['Outfit']">₹<?= number_format($total_collected) ?></p>
+            <div class="mt-2 text-2xs text-indigo-200 flex justify-between">
+                <span>Invoiced: ₹<?= number_format($total_invoiced) ?></span>
+                <span class="text-rose-300 font-bold">Pending: ₹<?= number_format($total_pending_fee) ?></span>
+            </div>
+            <div class="mt-3 pt-2 border-t border-indigo-800/80">
+                <a href="/admin/fees.php" class="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center">
+                    <span>Manage Invoices & Payments</span>
+                    <i class="fa-solid fa-arrow-right ml-1 text-[10px]"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- Class Timetables -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow transition flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase text-slate-400 tracking-wider">Academic Timetable</span>
+                    <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                        <i class="fa-solid fa-calendar-days text-lg"></i>
+                    </div>
+                </div>
+                <p class="text-xl font-bold text-slate-900 mt-2">Active Class Schedules</p>
+                <p class="text-xs text-slate-500 mt-1">Configure weekly periods (Mon-Sat) for Class 10 & 9.</p>
+            </div>
+            <div class="mt-3 pt-2 border-t border-slate-100">
+                <a href="/admin/timetable.php" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center">
+                    <span>Open Timetable Editor &rarr;</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Leave Requests -->
+        <div class="bg-white p-5 rounded-2xl border <?= $pending_leaves_count > 0 ? 'border-amber-300 bg-amber-50/20' : 'border-slate-200' ?> shadow-sm hover:shadow transition flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase text-slate-400 tracking-wider">Leave Applications</span>
+                    <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                        <i class="fa-solid fa-envelope-open-text text-lg"></i>
+                    </div>
+                </div>
+                <div class="flex items-baseline gap-2 mt-2">
+                    <p class="text-2xl font-bold text-slate-900"><?= $pending_leaves_count ?></p>
+                    <span class="text-xs text-slate-500">pending review</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-1">Review leave applications from faculty & students.</p>
+            </div>
+            <div class="mt-3 pt-2 border-t border-slate-100">
+                <a href="/admin/leaves.php" class="text-xs font-bold text-rose-600 hover:text-rose-800 flex items-center">
+                    <span>Manage Leave Requests &rarr;</span>
+                </a>
+            </div>
+        </div>
     </div>
 
     <!-- PENDING STUDENT APPROVALS QUEUE (Core Feature Highlight) -->
