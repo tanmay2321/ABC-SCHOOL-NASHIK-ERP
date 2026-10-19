@@ -1,0 +1,12 @@
+# Archive files
+*.zip
+*.tar.gz
+
+# Session and temp cookies
+cookies.txt
+*.log
+
+# OS metadata
+.DS_Store
+Thumbs.db
+desktop.ini
