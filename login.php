@@ -182,18 +182,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                         <input id="login_input" name="login_input" type="text" required 
                                value="<?= htmlspecialchars($_POST['login_input'] ?? '') ?>"
-                               placeholder="e.g. admin@abcschool.edu or student roll" 
+                               placeholder="admin@edu.in" 
                                class="block w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-navy-600 focus:border-navy-600 transition">
                     </div>
                 </div>
 
                 <div>
-                    <div class="flex items-center justify-between mb-1.5">
-                        <label for="password" class="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                            Password
-                        </label>
-                        <span class="text-xs text-slate-400">Default passwords provided below</span>
-                    </div>
+                    <label for="password" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                        Password
+                    </label>
                     <div class="relative rounded-xl shadow-sm">
                         <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                             <i class="fa-solid fa-lock text-sm"></i>
@@ -212,74 +209,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </form>
 
-            <!-- Test Demo Accounts One-Click Fillers -->
-            <div class="mt-8 pt-6 border-t border-slate-200">
-                <p class="text-xs font-bold text-slate-500 uppercase tracking-wider text-center mb-3">
-                    <i class="fa-solid fa-flask-vial mr-1 text-amber-500"></i> Instant One-Click Demo Logins
-                </p>
-                <div class="grid grid-cols-2 gap-2 text-xs">
-                    <!-- Admin -->
-                    <button type="button" onclick="fillCredentials('admin@abcschool.edu', 'admin123')" 
-                            class="p-2.5 rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-900 font-semibold text-left transition flex items-center space-x-2">
-                        <i class="fa-solid fa-shield-halved text-purple-600"></i>
-                        <div>
-                            <div class="text-[11px] font-bold">Admin</div>
-                            <div class="text-[10px] text-purple-700">Full Access</div>
-                        </div>
-                    </button>
-
-                    <!-- Teacher -->
-                    <button type="button" onclick="fillCredentials('priya.kulkarni@abcschool.edu', 'teacher123')" 
-                            class="p-2.5 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-900 font-semibold text-left transition flex items-center space-x-2">
-                        <i class="fa-solid fa-chalkboard-user text-blue-600"></i>
-                        <div>
-                            <div class="text-[11px] font-bold">Teacher</div>
-                            <div class="text-[10px] text-blue-700">Mrs. Priya (Math)</div>
-                        </div>
-                    </button>
-
-                    <!-- Approved Student -->
-                    <button type="button" onclick="fillCredentials('aarav.patil@student.abc.edu', 'student123')" 
-                            class="p-2.5 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 font-semibold text-left transition flex items-center space-x-2">
-                        <i class="fa-solid fa-user-check text-emerald-600"></i>
-                        <div>
-                            <div class="text-[11px] font-bold">Approved Student</div>
-                            <div class="text-[10px] text-emerald-700">Aarav (Class 10)</div>
-                        </div>
-                    </button>
-
-                    <!-- Pending Student -->
-                    <button type="button" onclick="fillCredentials('rohan.shinde@student.abc.edu', 'student123')" 
-                            class="p-2.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 font-semibold text-left transition flex items-center space-x-2"
-                            title="Click to test login blocked until Admin approves!">
-                        <i class="fa-solid fa-user-clock text-amber-600"></i>
-                        <div>
-                            <div class="text-[11px] font-bold">Pending Student</div>
-                            <div class="text-[10px] text-amber-800">Test Blocked Login</div>
-                        </div>
-                    </button>
-                </div>
-            </div>
-
             <!-- New Student Registration Link -->
-            <div class="mt-6 pt-4 border-t border-slate-100 text-center">
+            <div class="mt-8 pt-6 border-t border-slate-100 text-center">
                 <p class="text-xs text-slate-600">
                     Are you a new student without an account?
                     <a href="/register.php" class="font-bold text-navy-800 hover:text-navy-950 underline ml-1">Register for New ID &rarr;</a>
                 </p>
-                <div class="mt-2">
+                <div class="mt-3">
                     <a href="/" class="text-[11px] text-slate-400 hover:text-slate-600">&larr; Back to School Website</a>
                 </div>
             </div>
 
         </div>
     </div>
-
-    <script>
-        function fillCredentials(login, pass) {
-            document.getElementById('login_input').value = login;
-            document.getElementById('password').value = pass;
-        }
-    </script>
 </body>
 </html>

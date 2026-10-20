@@ -36,18 +36,21 @@ A modern, responsive, production-ready School ERP platform built with **PHP 8.2*
 
 ---
 
-## 🔐 Pre-Seeded Demo Credentials
+## 🔐 Clean System Credentials
 
-The system comes pre-populated with ready-to-use demo accounts. On the **Login Page** (`/login.php`), there are **one-click buttons** to test each role instantly:
+The system is delivered **100% fresh with zero test/demo data**. All tables are clean, empty, and ready for production use.
 
-| Role | Username / Email | Password | Status | Notes |
-|---|---|---|---|---|
-| **Administrator** | `admin@abcschool.edu` | `admin123` | Approved | Full administrative access |
-| **Teacher (Maths)** | `priya.kulkarni@abcschool.edu` | `teacher123` | Approved | HOD Mathematics (`TCH-201`) |
-| **Teacher (Science)** | `amit.deshmukh@abcschool.edu` | `teacher123` | Approved | PGT Physics & Science (`TCH-202`) |
-| **Student (Approved)** | `aarav.patil@student.abc.edu` | `student123` | Approved | Class 10-A, Roll 1001 (Can log in) |
-| **Student (Approved 2)**| `ananya.joshi@student.abc.edu`| `student123` | Approved | Class 10-A, Roll 1002 (Fee Paid) |
-| **Student (Pending)** | `rohan.shinde@student.abc.edu` | `student123` | **Pending** | Class 9-B (**Test blocked login!**) |
+Log in using the master Administrator credentials:
+
+| Role | Username / Email | Password | Access Level |
+|---|---|---|---|
+| **System Administrator** | `admin@edu.in` | `Admin@1234` | Full Master Control |
+
+### 📋 Getting Started Flow:
+1. **Log in as Admin** at `/login.php` with `admin@edu.in` / `Admin@1234`.
+2. **Create Teachers**: Go to **Teachers Management** (`/admin/teachers.php`) &rarr; click **Add Teacher ID** to create faculty login accounts.
+3. **Student Admissions**: Students register on the public portal via **Register for New ID** (`/register.php`).
+4. **Approve Students**: Newly registered students enter the **Student Approvals Queue** in the Admin Dashboard (`/admin/students.php`). The Admin approves them with one click, after which the students can immediately log in and access their portal.
 
 ---
 
