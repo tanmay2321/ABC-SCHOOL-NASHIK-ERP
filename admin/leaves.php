@@ -81,9 +81,11 @@ $count_approved = $pdo->query("SELECT COUNT(*) FROM leave_applications WHERE sta
 $count_rejected = $pdo->query("SELECT COUNT(*) FROM leave_applications WHERE status = 'Rejected'")->fetchColumn();
 
 $page_title = "Leave Management & Approvals - Admin Portal";
-include __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../includes/sidebar.php';
 ?>
 
+<main class="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6 lg:p-8">
 <div class="space-y-6">
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
@@ -359,4 +361,5 @@ function openLeaveActionModal(leave) {
 }
 </script>
 
+</main>
 <?php include __DIR__ . '/../includes/footer.php'; ?>

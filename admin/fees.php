@@ -12,7 +12,7 @@ $flash = get_flash();
 $active_tab = $_GET['status'] ?? 'all';
 
 // Handle Form Submissions: Create Invoice, Record Payment, Delete
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $action = $_POST['action'] ?? '';
 
     if ($action === 'create_invoice') {
@@ -134,6 +134,105 @@ $recent_payments = $pdo->query("
     ORDER BY p.id DESC LIMIT 6
 ")->fetchAll();
 
+// Excel Spreadsheet Export Handler
+if (isset($_GET['export']) && $_GET['export'] === 'excel') {
+    $school_name = get_setting($pdo, 'school_name', 'ABC Senior Secondary School Nashik');
+    $school_affiliation = get_setting($pdo, 'school_affiliation', 'CBSE Board Affiliation #113042');
+    $filename = "ABC_School_Fee_Register_" . date('Y-m-d') . ".xls";
+
+    header("Content-Type: application/vnd.ms-excel; charset=utf-8");
+    header("Content-Disposition: attachment; filename=\"$filename\"");
+    header("Pragma: no-cache");
+    header("Expires: 0");
+
+    echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+    echo '<head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><style>';
+    echo 'th, td { border: 0.5pt solid #cbd5e1; font-family: Segoe UI, Arial, sans-serif; }';
+    echo '.hdr-main { background-color: #172554; color: #ffffff; font-size: 15pt; font-weight: bold; text-align: center; }';
+    echo '.hdr-sub { background-color: #1e3a8a; color: #facc15; font-size: 10.5pt; font-weight: bold; text-align: center; }';
+    echo '.hdr-info { background-color: #f8fafc; color: #64748b; font-size: 9pt; text-align: right; }';
+    echo '.col-hdr { background-color: #f1f5f9; color: #0f172a; font-weight: bold; font-size: 9.5pt; text-align: center; }';
+    echo '.row-even { background-color: #ffffff; font-size: 9pt; }';
+    echo '.row-odd { background-color: #f8fafc; font-size: 9pt; }';
+    echo '.num { text-align: right; }';
+    echo '.center { text-align: center; }';
+    echo '.status-paid { background-color: #dcfce7; color: #166534; font-weight: bold; text-align: center; }';
+    echo '.status-partial { background-color: #fef3c7; color: #92400e; font-weight: bold; text-align: center; }';
+    echo '.status-unpaid { background-color: #fee2e2; color: #991b1b; font-weight: bold; text-align: center; }';
+    echo '.totals { background-color: #0f172a; color: #ffffff; font-weight: bold; font-size: 10pt; }';
+    echo '</style></head><body>';
+
+    echo '<table border="1" cellpadding="6" cellspacing="0">';
+    echo '<tr><td colspan="14" class="hdr-main" height="38">' . htmlspecialchars(strtoupper($school_name)) . '</td></tr>';
+    echo '<tr><td colspan="14" class="hdr-sub" height="24">OFFICIAL ACADEMIC FEE REGISTER & DUES REPORT &mdash; AY 2026-2027</td></tr>';
+    echo '<tr><td colspan="14" class="hdr-info">Report Generated: ' . date('d M Y, h:i A') . ' | Affiliation: ' . htmlspecialchars($school_affiliation) . '</td></tr>';
+
+    echo '<tr>';
+    echo '<th class="col-hdr">Sr.</th>';
+    echo '<th class="col-hdr">Invoice No</th>';
+    echo '<th class="col-hdr">Student Name</th>';
+    echo '<th class="col-hdr">Student Code</th>';
+    echo '<th class="col-hdr">Class</th>';
+    echo '<th class="col-hdr">Roll</th>';
+    echo '<th class="col-hdr">Fee Title</th>';
+    echo '<th class="col-hdr">Tuition (₹)</th>';
+    echo '<th class="col-hdr">Lab & Lib (₹)</th>';
+    echo '<th class="col-hdr">Sports & Exam (₹)</th>';
+    echo '<th class="col-hdr">Total Invoiced (₹)</th>';
+    echo '<th class="col-hdr">Total Paid (₹)</th>';
+    echo '<th class="col-hdr">Outstanding (₹)</th>';
+    echo '<th class="col-hdr">Status</th>';
+    echo '</tr>';
+
+    $i = 1;
+    $sum_invoiced = 0;
+    $sum_paid = 0;
+    $sum_due = 0;
+
+    foreach ($invoices as $inv) {
+        $row_cls = ($i % 2 === 0) ? 'row-even' : 'row-odd';
+        $paid = floatval($inv['paid_amount']);
+        $total = floatval($inv['total_amount']);
+        $due = max(0, $total - $paid);
+        $sum_invoiced += $total;
+        $sum_paid += $paid;
+        $sum_due += $due;
+
+        $st_cls = 'status-unpaid';
+        if ($inv['status'] === 'Paid' || $due <= 0) $st_cls = 'status-paid';
+        elseif ($inv['status'] === 'Partial') $st_cls = 'status-partial';
+
+        echo "<tr class='$row_cls'>";
+        echo "<td class='center'>$i</td>";
+        echo "<td class='center'>" . htmlspecialchars($inv['invoice_no']) . "</td>";
+        echo "<td>" . htmlspecialchars($inv['student_name']) . "</td>";
+        echo "<td class='center'>" . htmlspecialchars($inv['student_code']) . "</td>";
+        echo "<td class='center'>" . htmlspecialchars($inv['class']) . "</td>";
+        echo "<td class='center'>" . htmlspecialchars($inv['roll_no'] ?: '-') . "</td>";
+        echo "<td>" . htmlspecialchars($inv['title']) . "</td>";
+        echo "<td class='num'>" . number_format($inv['tuition_fee'], 2) . "</td>";
+        echo "<td class='num'>" . number_format($inv['lab_fee'] + $inv['library_fee'], 2) . "</td>";
+        echo "<td class='num'>" . number_format($inv['sports_fee'] + $inv['exam_fee'], 2) . "</td>";
+        echo "<td class='num'><strong>" . number_format($total, 2) . "</strong></td>";
+        echo "<td class='num' style='color:#166534;'><strong>" . number_format($paid, 2) . "</strong></td>";
+        echo "<td class='num' style='color:#991b1b;'><strong>" . number_format($due, 2) . "</strong></td>";
+        echo "<td class='$st_cls'>" . htmlspecialchars($inv['status']) . "</td>";
+        echo "</tr>";
+        $i++;
+    }
+
+    echo '<tr class="totals">';
+    echo '<td colspan="10" align="right">GRAND TOTALS (' . count($invoices) . ' Records):</td>';
+    echo '<td class="num">₹' . number_format($sum_invoiced, 2) . '</td>';
+    echo '<td class="num" style="color:#4ade80;">₹' . number_format($sum_paid, 2) . '</td>';
+    echo '<td class="num" style="color:#f87171;">₹' . number_format($sum_due, 2) . '</td>';
+    echo '<td class="center">' . (($sum_invoiced > 0) ? round(($sum_paid / $sum_invoiced) * 100, 1) . '% Paid' : '0%') . '</td>';
+    echo '</tr>';
+
+    echo '</table></body></html>';
+    exit();
+}
+
 $page_title = 'Fee Accounting & Invoices';
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/sidebar.php';
@@ -157,7 +256,10 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </p>
         </div>
 
-        <div class="flex items-center space-x-3">
+        <div class="flex flex-wrap items-center gap-2.5">
+            <a href="?export=excel<?= $active_tab !== 'all' ? '&status=' . urlencode($active_tab) : '' ?>" class="inline-flex items-center px-4 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs shadow-xs transition" title="Export formatted spreadsheet with headers, columns, and totals">
+                <i class="fa-solid fa-file-excel mr-2 text-emerald-600 text-sm"></i> Export to Excel
+            </a>
             <button type="button" onclick="openModal('createInvoiceModal')" class="inline-flex items-center px-4 py-2.5 rounded-xl bg-navy-800 hover:bg-navy-900 text-white font-semibold text-xs shadow-md shadow-navy-900/10 transition">
                 <i class="fa-solid fa-file-invoice-dollar mr-2 text-amber-400"></i> Generate Fee Invoice
             </button>

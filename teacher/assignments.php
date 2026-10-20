@@ -146,9 +146,11 @@ if ($view_asgn_id) {
 }
 
 $page_title = "Assignments & Homework - Teacher Portal";
-include __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../includes/sidebar.php';
 ?>
 
+<main class="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6 lg:p-8">
 <div class="space-y-6">
     <!-- Top Action Bar -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
@@ -571,4 +573,5 @@ function openGradeModal(sub, maxMarks, asgnId) {
 }
 </script>
 
+</main>
 <?php include __DIR__ . '/../includes/footer.php'; ?>

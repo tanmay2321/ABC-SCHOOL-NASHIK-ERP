@@ -17,6 +17,9 @@ $error_message = '';
 $warning_message = '';
 $flash = get_flash();
 
+$school_logo = get_setting($pdo, 'school_logo', '');
+$school_name = get_setting($pdo, 'school_name', 'ABC School Nashik');
+
 // Status flags from redirect
 if (isset($_GET['logged_out'])) {
     $flash = ['type' => 'success', 'message' => 'You have been securely logged out. Session destroyed.'];
@@ -118,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['email'] = $user['email'];
                     $_SESSION['role'] = $user['role'];
                     $_SESSION['status'] = 'approved';
-                    $_SESSION['full_name'] = 'Principal / Head Admin';
+                    $_SESSION['full_name'] = get_setting($pdo, 'admin_name', 'Principal / Head Admin');
 
                     header("Location: /admin/index.php");
                     exit();
@@ -170,11 +173,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <div class="sm:mx-auto sm:w-full sm:max-w-md">
         <!-- Logo -->
-        <a href="/" class="flex flex-col items-center group">
-            <div class="w-16 h-16 rounded-3xl bg-gradient-to-tr from-navy-950 to-navy-700 flex items-center justify-center text-white shadow-xl shadow-blue-500/20 group-hover:scale-105 transition-transform mb-3">
-                <i class="fa-solid fa-school text-3xl text-amber-400"></i>
-            </div>
-            <h2 class="text-2xl font-extrabold text-navy-950 font-['Outfit'] tracking-tight">ABC SCHOOL NASHIK</h2>
+        <a href="/" class="flex flex-col items-center group text-center">
+            <?php if (!empty($school_logo) && file_exists(__DIR__ . '/' . ltrim($school_logo, '/'))): ?>
+                <img src="<?= htmlspecialchars($school_logo) ?>" alt="School Logo" class="w-20 h-20 object-contain rounded-3xl shadow-xl shadow-blue-500/10 group-hover:scale-105 transition-transform mb-3 bg-white p-2 border border-slate-200">
+            <?php else: ?>
+                <div class="w-16 h-16 rounded-3xl bg-gradient-to-tr from-navy-950 to-navy-700 flex items-center justify-center text-white shadow-xl shadow-blue-500/20 group-hover:scale-105 transition-transform mb-3">
+                    <i class="fa-solid fa-school text-3xl text-amber-400"></i>
+                </div>
+            <?php endif; ?>
+            <h2 class="text-2xl font-extrabold text-navy-950 font-['Outfit'] tracking-tight"><?= htmlspecialchars(strtoupper($school_name)) ?></h2>
             <p class="text-xs font-bold tracking-widest text-amber-600 uppercase mt-0.5">Enterprise Resource Planning (ERP)</p>
         </a>
     </div>

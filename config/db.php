@@ -183,6 +183,12 @@ function init_database($pdo) {
             applied_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         );
+
+        -- SYSTEM SETTINGS & BRANDING
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        );
     ");
 
     // Migration: ensure assigned_class exists in teachers table
@@ -205,6 +211,48 @@ function init_database($pdo) {
     } else {
         $ins = $pdo->prepare("INSERT INTO users (username, email, password, role, status) VALUES (?, ?, ?, 'admin', 'approved')");
         $ins->execute([$admin_email, $admin_email, $adminPass]);
+    }
+
+    // 3. Default Institution Settings
+    $defaults = [
+        'school_name' => 'ABC Senior Secondary School Nashik',
+        'school_affiliation' => 'CBSE Board Affiliation #113042',
+        'school_address' => 'Gangapur Road, Nashik, Maharashtra 422013',
+        'school_phone' => '+91 253 2570000 / +91 98230 12345',
+        'school_email' => 'info@abcschoolnashik.edu.in',
+        'admin_name' => 'Principal / Head Admin',
+        'admin_designation' => 'Principal & Executive Administrator',
+        'school_logo' => ''
+    ];
+
+    $check_setting = $pdo->prepare("SELECT COUNT(*) FROM settings WHERE key = ?");
+    $insert_setting = $pdo->prepare("INSERT INTO settings (key, value) VALUES (?, ?)");
+    foreach ($defaults as $k => $v) {
+        $check_setting->execute([$k]);
+        if ($check_setting->fetchColumn() == 0) {
+            $insert_setting->execute([$k, $v]);
+        }
+    }
+}
+
+// Global settings helpers
+function get_setting($pdo, $key, $default = '') {
+    try {
+        $stmt = $pdo->prepare("SELECT value FROM settings WHERE key = ?");
+        $stmt->execute([$key]);
+        $val = $stmt->fetchColumn();
+        return ($val !== false && $val !== null) ? $val : $default;
+    } catch (Exception $e) {
+        return $default;
+    }
+}
+
+function set_setting($pdo, $key, $value) {
+    try {
+        $stmt = $pdo->prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)");
+        return $stmt->execute([$key, $value]);
+    } catch (Exception $e) {
+        return false;
     }
 }
 

@@ -153,6 +153,21 @@ abc-school-erp/
    - Teachers assigned to a class receive an amber "Morning Roll Call Responsibility" banner on login.
    - The morning attendance sheet automatically pre-selects the teacher's allotted class for roll call.
 
+6. **Principal / Head Admin Master Oversight**:
+   - **School-Wide Attendance Register (`/admin/attendance.php`)**: View daily morning roll call completion by class teacher across all 16 grades (Grade 1 to 12), with live Present/Absent/Late metrics and manual override ability.
+   - **Academic Assignments Oversight (`/admin/assignments.php`)**: Full visibility into all homework assigned by teachers, student file submissions, grades awarded, and teacher evaluation comments.
+
+7. **Official Formatted Excel Fee Export**:
+   - 1-Click **"Export to Excel"** in the Fee Accounting module (`/admin/fees.php`).
+   - Generates an official, styled spreadsheet (`.xls`) with school header banner, CBSE affiliation, alternating row styling, currency formatting (₹), status highlight badges, and grand total calculations.
+
+8. **Custom School Logo Branding & Principal Profile**:
+   - Upload official school logo in **Settings** (`/admin/settings.php`); dynamically displayed across the header, login, registration, homepage, and digital fee receipts.
+   - Update Principal / Head Administrator display name, designation, login email, and password with real-time session synchronization.
+
+9. **Unified Responsive Sidebar Navigation**:
+   - Every single page across Admin, Teacher, and Student portals includes the unified sidebar navigation and mobile-friendly slide-out drawer.
+
 ---
 
 ## 🛡️ Enterprise Security & Privacy Architecture

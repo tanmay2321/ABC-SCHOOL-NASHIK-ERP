@@ -33,6 +33,12 @@ if ($role === 'admin') {
             'active' => strpos($current_uri, '/admin/students.php') !== false
         ],
         [
+            'title' => 'Attendance Oversight',
+            'url' => '/admin/attendance.php',
+            'icon' => 'fa-solid fa-clipboard-user',
+            'active' => strpos($current_uri, '/admin/attendance.php') !== false
+        ],
+        [
             'title' => 'Fee Accounting & Invoices',
             'url' => '/admin/fees.php',
             'icon' => 'fa-solid fa-receipt',
@@ -49,6 +55,12 @@ if ($role === 'admin') {
             'url' => '/admin/timetable.php',
             'icon' => 'fa-solid fa-calendar-days',
             'active' => strpos($current_uri, '/admin/timetable.php') !== false
+        ],
+        [
+            'title' => 'Homework & Assignments',
+            'url' => '/admin/assignments.php',
+            'icon' => 'fa-solid fa-book-bookmark',
+            'active' => strpos($current_uri, '/admin/assignments.php') !== false
         ],
         [
             'title' => 'Leave Approvals',

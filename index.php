@@ -6,6 +6,13 @@ require_once __DIR__ . '/includes/auth.php';
 
 $notices = $pdo->query("SELECT * FROM notices WHERE audience IN ('all', 'students') ORDER BY id DESC LIMIT 4")->fetchAll();
 $stats = get_school_stats($pdo);
+
+$school_logo = get_setting($pdo, 'school_logo', '');
+$school_name = get_setting($pdo, 'school_name', 'ABC School Nashik');
+$school_phone = get_setting($pdo, 'school_phone', '+91 (0253) 234-5678');
+$school_email = get_setting($pdo, 'school_email', 'contact@abcschoolnashik.edu');
+$school_address = get_setting($pdo, 'school_address', 'Gangapur Road, Nashik, Maharashtra 422013');
+$school_affiliation = get_setting($pdo, 'school_affiliation', 'CBSE Affiliation No: 113042');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -66,11 +73,15 @@ $stats = get_school_stats($pdo);
             <div class="flex items-center justify-between h-20">
                 <!-- Brand / Logo -->
                 <a href="/" class="flex items-center space-x-3.5">
-                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-navy-900 to-navy-700 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
-                        <i class="fa-solid fa-school text-2xl text-amber-400"></i>
-                    </div>
+                    <?php if (!empty($school_logo) && file_exists(__DIR__ . '/' . ltrim($school_logo, '/'))): ?>
+                        <img src="<?= htmlspecialchars($school_logo) ?>" alt="School Logo" class="w-12 h-12 object-contain rounded-2xl shadow-lg shadow-blue-500/10 p-1 bg-white border border-slate-200">
+                    <?php else: ?>
+                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-navy-900 to-navy-700 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+                            <i class="fa-solid fa-school text-2xl text-amber-400"></i>
+                        </div>
+                    <?php endif; ?>
                     <div>
-                        <span class="text-xl sm:text-2xl font-extrabold tracking-tight text-navy-950 font-['Outfit'] block leading-none">ABC SCHOOL</span>
+                        <span class="text-xl sm:text-2xl font-extrabold tracking-tight text-navy-950 font-['Outfit'] block leading-none"><?= htmlspecialchars(strtoupper($school_name)) ?></span>
                         <span class="text-xs font-bold tracking-widest text-amber-600 uppercase block mt-1">Nashik • Excellence in Education</span>
                     </div>
                 </a>

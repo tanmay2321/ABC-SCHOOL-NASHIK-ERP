@@ -15,6 +15,9 @@ $student_id = $student['id'] ?? 0;
 $flash = get_flash();
 $receipt_to_view = null;
 
+$school_logo = get_setting($pdo, 'school_logo', '');
+$school_name = get_setting($pdo, 'school_name', 'ABC Senior Secondary School Nashik');
+
 // Handle Online Fee Payment Simulation
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'student_pay_online') {
     $invoice_id = (int)($_POST['invoice_id'] ?? 0);
@@ -194,11 +197,15 @@ require_once __DIR__ . '/../includes/sidebar.php';
         <div class="bg-white rounded-3xl border-2 border-slate-300 shadow-xl p-8 max-w-2xl mx-auto mb-8 print-page animate-fade-in">
             <div class="flex items-center justify-between pb-4 border-b-2 border-navy-950 mb-4">
                 <div class="flex items-center space-x-3">
-                    <div class="w-12 h-12 rounded-2xl bg-navy-950 flex items-center justify-center text-white text-xl">
-                        <i class="fa-solid fa-graduation-cap text-amber-400"></i>
-                    </div>
+                    <?php if (!empty($school_logo) && file_exists(__DIR__ . '/../' . ltrim($school_logo, '/'))): ?>
+                        <img src="<?= htmlspecialchars($school_logo) ?>" alt="School Logo" class="w-12 h-12 object-contain rounded-2xl bg-white p-1 border border-slate-200">
+                    <?php else: ?>
+                        <div class="w-12 h-12 rounded-2xl bg-navy-950 flex items-center justify-center text-white text-xl">
+                            <i class="fa-solid fa-graduation-cap text-amber-400"></i>
+                        </div>
+                    <?php endif; ?>
                     <div>
-                        <h2 class="text-base font-bold text-navy-950 font-['Outfit'] uppercase">ABC Senior Secondary School Nashik</h2>
+                        <h2 class="text-base font-bold text-navy-950 font-['Outfit'] uppercase"><?= htmlspecialchars($school_name) ?></h2>
                         <p class="text-[11px] text-amber-600 font-semibold">Official Fee Payment Receipt</p>
                     </div>
                 </div>

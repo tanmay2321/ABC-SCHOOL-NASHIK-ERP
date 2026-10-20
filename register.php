@@ -9,6 +9,9 @@ $success = false;
 $error = '';
 $new_student_data = [];
 
+$school_logo = get_setting($pdo, 'school_logo', '');
+$school_name = get_setting($pdo, 'school_name', 'ABC School Nashik');
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     $full_name = trim($_POST['full_name'] ?? '');
@@ -124,11 +127,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <div class="sm:mx-auto sm:w-full sm:max-w-2xl">
         <!-- Logo -->
-        <a href="/" class="flex flex-col items-center mb-6">
-            <div class="w-14 h-14 rounded-2xl bg-navy-950 flex items-center justify-center text-white shadow-md mb-2">
-                <i class="fa-solid fa-graduation-cap text-2xl text-amber-400"></i>
-            </div>
-            <h1 class="text-2xl font-black text-navy-950 font-['Outfit']">ABC SCHOOL NASHIK</h1>
+        <a href="/" class="flex flex-col items-center mb-6 text-center">
+            <?php if (!empty($school_logo) && file_exists(__DIR__ . '/' . ltrim($school_logo, '/'))): ?>
+                <img src="<?= htmlspecialchars($school_logo) ?>" alt="School Logo" class="w-16 h-16 object-contain rounded-2xl shadow-md mb-2 bg-white p-1 border border-slate-200">
+            <?php else: ?>
+                <div class="w-14 h-14 rounded-2xl bg-navy-950 flex items-center justify-center text-white shadow-md mb-2">
+                    <i class="fa-solid fa-graduation-cap text-2xl text-amber-400"></i>
+                </div>
+            <?php endif; ?>
+            <h1 class="text-2xl font-black text-navy-950 font-['Outfit']"><?= htmlspecialchars(strtoupper($school_name)) ?></h1>
             <p class="text-xs font-bold text-amber-600 tracking-wider uppercase">Online Student Admission &amp; ID Portal</p>
         </a>
 

@@ -9,6 +9,9 @@ $flash = get_flash();
 $current_page = basename($_SERVER['PHP_SELF']);
 $page_title = $page_title ?? 'ABC School Nashik ERP';
 
+$school_logo = get_setting($pdo, 'school_logo', '');
+$school_name = get_setting($pdo, 'school_name', 'ABC School Nashik');
+
 // Pending approvals count for badge (if admin)
 $pending_count = 0;
 if ($current_user && $current_user['role'] === 'admin') {
@@ -70,12 +73,16 @@ if ($current_user && $current_user['role'] === 'admin') {
                     </button>
                     
                     <a href="/" class="flex items-center space-x-3 group">
-                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-navy-900 to-navy-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
-                            <i class="fa-solid fa-graduation-cap text-lg text-amber-400"></i>
-                        </div>
+                        <?php if (!empty($school_logo) && file_exists(__DIR__ . '/../' . ltrim($school_logo, '/'))): ?>
+                            <img src="<?= htmlspecialchars($school_logo) ?>" alt="School Logo" class="w-10 h-10 object-contain rounded-xl shadow-md p-1 bg-white border border-slate-200 group-hover:scale-105 transition-transform">
+                        <?php else: ?>
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-navy-900 to-navy-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
+                                <i class="fa-solid fa-school text-lg text-amber-400"></i>
+                            </div>
+                        <?php endif; ?>
                         <div>
-                            <span class="text-lg font-bold tracking-tight text-navy-950 font-['Outfit'] block leading-tight">ABC SCHOOL</span>
-                            <span class="text-xs font-semibold tracking-wider text-amber-600 uppercase block">Nashik • ERP Portal</span>
+                            <span class="text-base sm:text-lg font-bold tracking-tight text-navy-950 font-['Outfit'] block leading-tight truncate max-w-[180px] sm:max-w-xs"><?= htmlspecialchars($school_name) ?></span>
+                            <span class="text-[10px] sm:text-xs font-semibold tracking-wider text-amber-600 uppercase block">Nashik • ERP Portal</span>
                         </div>
                     </a>
                 </div>
