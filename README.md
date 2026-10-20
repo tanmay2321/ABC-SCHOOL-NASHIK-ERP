@@ -146,3 +146,52 @@ abc-school-erp/
    - Students apply for Sick Leave, Family Event, or Personal absence.
    - Faculty apply for Casual Leave, Medical Leave, Academic/Duty Leave, or Earned Leave.
    - Admin dashboard features a dedicated leave review queue with 1-click Approve or Reject and administrative feedback.
+
+
+5. **Class Teacher Allotment & Daily Morning Attendance**:
+   - Admin can allot any teacher as the official Class Teacher for a specific standard (e.g., Grade 10-A).
+   - Teachers assigned to a class receive an amber "Morning Roll Call Responsibility" banner on login.
+   - The morning attendance sheet automatically pre-selects the teacher's allotted class for roll call.
+
+---
+
+## 🛡️ Enterprise Security & Privacy Architecture
+
+The system implements multi-layered security controls to safeguard school records and user sessions:
+
+1. **Non-Persistent Strict Cookies (`lifetime: 0`)**:
+   - Eliminates unauthorized automatic persistent logins. Session cookies expire immediately when the user closes their browser.
+   - `httponly: true` prevents JavaScript cookie theft and Cross-Site Scripting (XSS) attacks.
+   - `samesite: Lax` blocks unauthorized cross-domain cookie leakage.
+
+2. **Inactivity Auto-Timeout (30 Minutes)**:
+   - Sessions idle for longer than 30 minutes are terminated automatically on the server, redirecting the user to `/login.php?timeout=1`.
+
+3. **Session Hijacking & Environment Fingerprinting**:
+   - User agent fingerprints (`md5(HTTP_USER_AGENT)`) are validated on every request. If an attacker copies a cookie to an external browser, the session is invalidated immediately.
+
+4. **Session Fixation Prevention**:
+   - `session_regenerate_id(true)` rotates the session identifier upon every successful login.
+
+5. **Anti-Caching HTTP Headers**:
+   - Protected dashboard pages and `logout.php` issue `Cache-Control: no-store, no-cache, must-revalidate, max-age=0`. Clicking the browser's "Back" button after logout cannot reveal private student or financial data from history cache.
+
+6. **Direct Database & Script Execution Blocking (403 Forbidden)**:
+   - Direct HTTP requests to `database.sqlite`, `database.db`, `.env`, `.git`, or batch files are intercepted and returned as `403 Forbidden` via both `router.php` (PHP built-in server) and `.htaccess` (Apache / XAMPP).
+   - Executable `.php` files inside `uploads/` are blocked from execution to prevent reverse shell or malicious script uploads.
+
+7. **Brute-Force Rate Limiting & CSRF**:
+   - 5 failed login attempts trigger an automatic 120-second cooldown lock.
+   - Cryptographic CSRF tokens protect authentication and admission submission forms.
+
+---
+
+## 🔑 Default Administrator Credentials
+
+> [!NOTE]
+> All sample and dummy records have been wiped. The database is clean and ready for real school operations.
+
+- **Portal URL**: `http://localhost:8000/login.php`
+- **Username / Email**: `admin@edu.in`
+- **Password**: `Admin@1234`
+- **Role**: Head Administrator / Principal

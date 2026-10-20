@@ -17,80 +17,122 @@ $error_message = '';
 $warning_message = '';
 $flash = get_flash();
 
+// Status flags from redirect
+if (isset($_GET['logged_out'])) {
+    $flash = ['type' => 'success', 'message' => 'You have been securely logged out. Session destroyed.'];
+} elseif (isset($_GET['timeout'])) {
+    $warning_message = '<strong>Session Timed Out:</strong> For your security, you were automatically signed out after 30 minutes of inactivity. Please sign in again.';
+} elseif (isset($_GET['hijack_detected'])) {
+    $error_message = 'Security Alert: Browser environment change detected. Your session was terminated for your protection.';
+}
+
+// Brute Force Rate Limiting
+$max_attempts = 5;
+$lockout_seconds = 120; // 2 minutes
+
+$attempts = $_SESSION['login_attempts'] ?? 0;
+$last_attempt_time = $_SESSION['last_login_attempt_time'] ?? 0;
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $login_input = trim($_POST['login_input'] ?? '');
-    $password = $_POST['password'] ?? '';
+    verify_csrf();
 
-    if (empty($login_input) || empty($password)) {
-        $error_message = 'Please provide both username/email and password.';
+    if ($attempts >= $max_attempts && (time() - $last_attempt_time < $lockout_seconds)) {
+        $remaining = $lockout_seconds - (time() - $last_attempt_time);
+        $error_message = "Too many failed login attempts. For security, login is locked for {$remaining} seconds.";
     } else {
-        // Query user by email OR username
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE email = :input OR username = :input LIMIT 1");
-        $stmt->execute(['input' => $login_input]);
-        $user = $stmt->fetch();
+        if ($attempts >= $max_attempts && (time() - $last_attempt_time >= $lockout_seconds)) {
+            $_SESSION['login_attempts'] = 0;
+        }
 
-        if ($user && password_verify($password, $user['password'])) {
-            // Verify status if role is student
-            if ($user['role'] === 'student') {
-                if ($user['status'] === 'pending') {
-                    $warning_message = "<strong>Account Pending Approval:</strong> Your registration has been received, but you <strong>cannot log in</strong> until the School Admin reviews and approves your account.<br><br><span class='text-xs opacity-90'>Please contact ABC School administration or wait for approval.</span>";
-                } elseif ($user['status'] === 'rejected') {
-                    $error_message = "Your student registration was reviewed and <strong>rejected</strong> by the administration. Please visit the school office.";
-                } elseif ($user['status'] === 'inactive') {
-                    $error_message = "Your student account is currently deactivated. Please contact the administrator.";
-                } else {
-                    // Approved student - fetch student profile details
-                    $sStmt = $pdo->prepare("SELECT * FROM students WHERE user_id = :uid LIMIT 1");
-                    $sStmt->execute(['uid' => $user['id']]);
-                    $student = $sStmt->fetch();
+        $login_input = trim($_POST['login_input'] ?? '');
+        $password = $_POST['password'] ?? '';
 
-                    $_SESSION['user_id'] = $user['id'];
-                    $_SESSION['username'] = $user['username'];
-                    $_SESSION['email'] = $user['email'];
-                    $_SESSION['role'] = $user['role'];
-                    $_SESSION['status'] = $user['status'];
-                    $_SESSION['full_name'] = $student['full_name'] ?? $user['username'];
-                    $_SESSION['profile_id'] = $student['id'] ?? null;
-                    $_SESSION['code'] = $student['student_code'] ?? '';
-                    $_SESSION['class'] = $student['class'] ?? '';
-
-                    header("Location: /student/index.php");
-                    exit();
-                }
-            } elseif ($user['role'] === 'teacher') {
-                if ($user['status'] === 'inactive') {
-                    $error_message = "Your teacher account is deactivated. Please contact the school admin.";
-                } else {
-                    $tStmt = $pdo->prepare("SELECT * FROM teachers WHERE user_id = :uid LIMIT 1");
-                    $tStmt->execute(['uid' => $user['id']]);
-                    $teacher = $tStmt->fetch();
-
-                    $_SESSION['user_id'] = $user['id'];
-                    $_SESSION['username'] = $user['username'];
-                    $_SESSION['email'] = $user['email'];
-                    $_SESSION['role'] = $user['role'];
-                    $_SESSION['status'] = $user['status'];
-                    $_SESSION['full_name'] = $teacher['full_name'] ?? $user['username'];
-                    $_SESSION['profile_id'] = $teacher['id'] ?? null;
-                    $_SESSION['code'] = $teacher['teacher_code'] ?? '';
-                    $_SESSION['department'] = $teacher['department'] ?? '';
-
-                    header("Location: /teacher/index.php");
-                    exit();
-                }
-            } elseif ($user['role'] === 'admin') {
-                $_SESSION['user_id'] = $user['id'];
-                $_SESSION['username'] = $user['username'];
-                $_SESSION['email'] = $user['email'];
-                $_SESSION['role'] = $user['role'];
-                $_SESSION['status'] = 'approved';
-                $_SESSION['full_name'] = 'Principal / Head Admin';
-
-                header("Location: /admin/index.php");
-                exit();
-            }
+        if (empty($login_input) || empty($password)) {
+            $error_message = 'Please provide both username/email and password.';
         } else {
-            $error_message = 'Invalid credentials. Please verify your email/username and password.';
+            // Query user by email OR username
+            $stmt = $pdo->prepare("SELECT * FROM users WHERE email = :input OR username = :input LIMIT 1");
+            $stmt->execute(['input' => $login_input]);
+            $user = $stmt->fetch();
+
+            if ($user && password_verify($password, $user['password'])) {
+                // Successful Login: Reset rate-limiting counter
+                $_SESSION['login_attempts'] = 0;
+
+                // Session Fixation Prevention: Regenerate session ID
+                session_regenerate_id(true);
+                $_SESSION['last_activity'] = time();
+                $_SESSION['fingerprint'] = md5($_SERVER['HTTP_USER_AGENT'] ?? 'unknown');
+
+                // Verify status if role is student
+                if ($user['role'] === 'student') {
+                    if ($user['status'] === 'pending') {
+                        $warning_message = "<strong>Account Pending Approval:</strong> Your registration has been received, but you <strong>cannot log in</strong> until the School Admin reviews and approves your account.<br><br><span class='text-xs opacity-90'>Please contact ABC School administration or wait for approval.</span>";
+                    } elseif ($user['status'] === 'rejected') {
+                        $error_message = "Your student registration was reviewed and <strong>rejected</strong> by the administration. Please visit the school office.";
+                    } elseif ($user['status'] === 'inactive') {
+                        $error_message = "Your student account is currently deactivated. Please contact the administrator.";
+                    } else {
+                        // Approved student - fetch student profile details
+                        $sStmt = $pdo->prepare("SELECT * FROM students WHERE user_id = :uid LIMIT 1");
+                        $sStmt->execute(['uid' => $user['id']]);
+                        $student = $sStmt->fetch();
+
+                        $_SESSION['user_id'] = $user['id'];
+                        $_SESSION['username'] = $user['username'];
+                        $_SESSION['email'] = $user['email'];
+                        $_SESSION['role'] = $user['role'];
+                        $_SESSION['status'] = $user['status'];
+                        $_SESSION['full_name'] = $student['full_name'] ?? $user['username'];
+                        $_SESSION['profile_id'] = $student['id'] ?? null;
+                        $_SESSION['code'] = $student['student_code'] ?? '';
+                        $_SESSION['class'] = $student['class'] ?? '';
+
+                        header("Location: /student/index.php");
+                        exit();
+                    }
+                } elseif ($user['role'] === 'teacher') {
+                    if ($user['status'] === 'inactive') {
+                        $error_message = "Your teacher account is deactivated. Please contact the school admin.";
+                    } else {
+                        $tStmt = $pdo->prepare("SELECT * FROM teachers WHERE user_id = :uid LIMIT 1");
+                        $tStmt->execute(['uid' => $user['id']]);
+                        $teacher = $tStmt->fetch();
+
+                        $_SESSION['user_id'] = $user['id'];
+                        $_SESSION['username'] = $user['username'];
+                        $_SESSION['email'] = $user['email'];
+                        $_SESSION['role'] = $user['role'];
+                        $_SESSION['status'] = $user['status'];
+                        $_SESSION['full_name'] = $teacher['full_name'] ?? $user['username'];
+                        $_SESSION['profile_id'] = $teacher['id'] ?? null;
+                        $_SESSION['code'] = $teacher['teacher_code'] ?? '';
+                        $_SESSION['department'] = $teacher['department'] ?? '';
+
+                        header("Location: /teacher/index.php");
+                        exit();
+                    }
+                } elseif ($user['role'] === 'admin') {
+                    $_SESSION['user_id'] = $user['id'];
+                    $_SESSION['username'] = $user['username'];
+                    $_SESSION['email'] = $user['email'];
+                    $_SESSION['role'] = $user['role'];
+                    $_SESSION['status'] = 'approved';
+                    $_SESSION['full_name'] = 'Principal / Head Admin';
+
+                    header("Location: /admin/index.php");
+                    exit();
+                }
+            } else {
+                $_SESSION['login_attempts'] = ($_SESSION['login_attempts'] ?? 0) + 1;
+                $_SESSION['last_login_attempt_time'] = time();
+                $rem = max(0, $max_attempts - $_SESSION['login_attempts']);
+                if ($rem > 0) {
+                    $error_message = "Invalid credentials. Please verify your email/username and password. ({$rem} attempts remaining before temporary lockout)";
+                } else {
+                    $error_message = "Too many failed login attempts. Login temporarily locked for {$lockout_seconds} seconds.";
+                }
+            }
         }
     }
 }
@@ -172,6 +214,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endif; ?>
 
             <form class="space-y-4" method="POST" action="login.php">
+                <?= csrf_field() ?>
                 <div>
                     <label for="login_input" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                         Username or Email Address

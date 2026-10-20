@@ -25,6 +25,6 @@ echo   To STOP the server, close this window or press Ctrl + C.
 echo ==========================================================
 echo.
 
-%PHP_BIN% -S localhost:8000
+%PHP_BIN% -S localhost:8000 router.php
 
 pause

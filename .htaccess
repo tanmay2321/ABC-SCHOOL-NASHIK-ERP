@@ -1,0 +1,30 @@
+# ABC School Nashik ERP - Apache Security Configuration
+
+# Prevent directory browsing
+Options -Indexes
+
+# Prevent direct HTTP access to SQLite database, logs, git, and sensitive files
+<FilesMatch "\.(sqlite|sqlite3|db|log|env|bat|sh|ini)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Explicitly block database.sqlite
+<Files "database.sqlite">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# Deny access to hidden files and directories (like .git, .env)
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Security HTTP Headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>

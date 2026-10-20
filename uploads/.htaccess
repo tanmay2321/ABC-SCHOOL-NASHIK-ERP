@@ -1,0 +1,22 @@
+# ABC School Nashik ERP - Uploads Folder Security
+# Disable execution of any scripts uploaded by users
+
+# Deny execution of PHP and executable script files
+<FilesMatch "\.(php|php5|php7|php8|phtml|phar|pl|py|cgi|sh|bash|exe)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Turn off PHP engine
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag engine off
+</IfModule>
+
+# Prevent directory indexing
+Options -Indexes

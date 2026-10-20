@@ -10,6 +10,7 @@ $error = '';
 $new_student_data = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
     $full_name = trim($_POST['full_name'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $username = trim($_POST['username'] ?? '');
@@ -200,6 +201,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <form method="POST" action="register.php" class="space-y-4">
+                    <?= csrf_field() ?>
                     
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <!-- Full Name -->
