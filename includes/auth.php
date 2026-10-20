@@ -81,6 +81,11 @@ function require_auth($allowed_roles = []) {
     }
 }
 
+// Alias for role-based requirement
+function require_role($role) {
+    require_auth($role);
+}
+
 // Helper to sanitize input
 function clean($data) {
     if (is_array($data)) {

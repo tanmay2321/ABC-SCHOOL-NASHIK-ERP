@@ -7,7 +7,7 @@
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 
-require_role('student');
+require_auth('student');
 
 $user = current_user();
 $stmt = $pdo->prepare("SELECT * FROM students WHERE user_id = ?");

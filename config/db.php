@@ -40,6 +40,7 @@ function init_database($pdo) {
             department TEXT NOT NULL,
             designation TEXT,
             qualification TEXT,
+            assigned_class TEXT DEFAULT NULL,
             joining_date TEXT,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         );
@@ -183,6 +184,12 @@ function init_database($pdo) {
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         );
     ");
+
+    // Migration: ensure assigned_class exists in teachers table
+    $t_cols = $pdo->query("PRAGMA table_info(teachers)")->fetchAll(PDO::FETCH_COLUMN, 1);
+    if (!in_array('assigned_class', $t_cols)) {
+        $pdo->exec("ALTER TABLE teachers ADD COLUMN assigned_class TEXT DEFAULT NULL;");
+    }
 
     // 2. Ensure Single Admin Account Exists (admin@edu.in / Admin@1234)
     $admin_email = 'admin@edu.in';

@@ -7,8 +7,31 @@ require_once __DIR__ . '/../includes/auth.php';
 require_auth('teacher');
 
 $teacher_user_id = $_SESSION['user_id'];
+
+// Fetch teacher profile to get their assigned class
+$tProfileStmt = $pdo->prepare("SELECT * FROM teachers WHERE user_id = ?");
+$tProfileStmt->execute([$teacher_user_id]);
+$teacher_profile = $tProfileStmt->fetch();
+$assigned_class = $teacher_profile['assigned_class'] ?? null;
+
+// Fetch classes
+$classes = $pdo->query("SELECT DISTINCT class FROM students WHERE class IS NOT NULL AND class != '' ORDER BY class ASC")->fetchAll(PDO::FETCH_COLUMN);
+if (empty($classes)) {
+    $classes = ['Class 10-A', 'Class 10-B', 'Class 9-A', 'Class 9-B', 'Class 8-A', 'Class 8-B'];
+}
+if (!empty($assigned_class) && !in_array($assigned_class, $classes)) {
+    array_unshift($classes, $assigned_class);
+}
+
+// Default class: use teacher's assigned class if set, otherwise default to first class
+$default_class = (!empty($assigned_class)) ? $assigned_class : $classes[0];
+$class = $_GET['class'] ?? $default_class;
 $date = $_GET['date'] ?? date('Y-m-d');
-$class = $_GET['class'] ?? 'Class 10-A';
+
+// Check designated Class Teacher for the selected class
+$ctStmt = $pdo->prepare("SELECT full_name FROM teachers WHERE assigned_class = ? LIMIT 1");
+$ctStmt->execute([$class]);
+$designated_ct_name = $ctStmt->fetchColumn();
 
 // Handle Attendance Submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_attendance'])) {
@@ -48,8 +71,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_attendance']))
     }
 }
 
-// Fetch classes
-$classes = $pdo->query("SELECT DISTINCT class FROM students ORDER BY class ASC")->fetchAll(PDO::FETCH_COLUMN);
 
 // Fetch students for selected class
 $sStmt = $pdo->prepare("
@@ -116,6 +137,46 @@ require_once __DIR__ . '/../includes/sidebar.php';
         </div>
     <?php endif; ?>
 
+    <!-- Class Teacher Status Banner -->
+    <?php if (!empty($assigned_class) && $assigned_class === $class): ?>
+        <div class="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center space-x-3.5">
+                <div class="w-11 h-11 rounded-2xl bg-amber-500 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-amber-500/20">
+                    <i class="fa-solid fa-chalkboard-user"></i>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-200 text-amber-900">
+                            Class Teacher Responsibility
+                        </span>
+                        <span class="text-xs text-amber-700 font-semibold">Morning Roll Call</span>
+                    </div>
+                    <h2 class="text-sm font-bold text-amber-950 mt-0.5">
+                        You are the Class Teacher for <?= htmlspecialchars($class) ?>
+                    </h2>
+                    <p class="text-xs text-amber-800/90">
+                        Please take the morning attendance for your class every day to maintain CBSE 75% compliance records.
+                    </p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2 self-start sm:self-auto">
+                <span class="px-3 py-1.5 rounded-xl bg-white border border-amber-300 text-amber-900 font-bold text-xs shadow-2xs">
+                    <i class="fa-regular fa-clock mr-1 text-amber-600"></i> <?= date('d M Y', strtotime($date)) ?>
+                </span>
+            </div>
+        </div>
+    <?php elseif (!empty($assigned_class)): ?>
+        <div class="mb-6 p-3.5 rounded-2xl bg-blue-50 border border-blue-200 text-blue-900 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center space-x-2.5">
+                <i class="fa-solid fa-circle-info text-blue-600 text-base"></i>
+                <span>You are the designated Class Teacher for <strong><?= htmlspecialchars($assigned_class) ?></strong>. Designated Class Teacher for <?= htmlspecialchars($class) ?> is <strong><?= htmlspecialchars($designated_ct_name ?: 'Not alloted') ?></strong>.</span>
+            </div>
+            <a href="/teacher/attendance.php?class=<?= urlencode($assigned_class) ?>&date=<?= urlencode($date) ?>" class="inline-flex items-center px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition shadow-xs self-start sm:self-auto">
+                Go to My Class (<?= htmlspecialchars($assigned_class) ?>) &rarr;
+            </a>
+        </div>
+    <?php endif; ?>
+
     <!-- Class & Date Selector Card -->
     <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-6">
         <form method="GET" action="attendance.php" class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
@@ -123,7 +184,9 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Select Class / Grade</label>
                 <select name="class" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-sm focus:outline-none">
                     <?php foreach ($classes as $c): ?>
-                        <option value="<?= htmlspecialchars($c) ?>" <?= ($class === $c) ? 'selected' : '' ?>><?= htmlspecialchars($c) ?></option>
+                        <option value="<?= htmlspecialchars($c) ?>" <?= ($class === $c) ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($c) ?> <?= (!empty($assigned_class) && $assigned_class === $c) ? '⭐ (My Assigned Class)' : '' ?>
+                        </option>
                     <?php endforeach; ?>
                 </select>
             </div>

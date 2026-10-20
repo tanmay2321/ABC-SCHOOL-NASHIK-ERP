@@ -24,6 +24,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $gender = trim($_POST['gender'] ?? 'Male');
         $phone = trim($_POST['phone'] ?? '');
         $qualification = trim($_POST['qualification'] ?? '');
+        $assigned_class = trim($_POST['assigned_class'] ?? '');
+        if ($assigned_class === 'none' || empty($assigned_class)) {
+            $assigned_class = null;
+        }
         $joining_date = trim($_POST['joining_date'] ?? date('Y-m-d'));
         $password = $_POST['password'] ?? 'teacher123';
 
@@ -44,8 +48,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $uStmt->execute(['u' => $username, 'e' => $email, 'p' => $hash]);
                     $user_id = $pdo->lastInsertId();
 
-                    $tStmt = $pdo->prepare("INSERT INTO teachers (user_id, teacher_code, full_name, gender, phone, department, designation, qualification, joining_date)
-                                            VALUES (:uid, :code, :name, :gender, :phone, :dept, :desig, :qual, :jdate)");
+                    $tStmt = $pdo->prepare("INSERT INTO teachers (user_id, teacher_code, full_name, gender, phone, department, designation, qualification, assigned_class, joining_date)
+                                            VALUES (:uid, :code, :name, :gender, :phone, :dept, :desig, :qual, :assigned_class, :jdate)");
                     $tStmt->execute([
                         'uid' => $user_id,
                         'code' => $teacher_code,
@@ -55,6 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'dept' => $department,
                         'desig' => $designation,
                         'qual' => $qualification,
+                        'assigned_class' => $assigned_class,
                         'jdate' => $joining_date
                     ]);
 
@@ -77,6 +82,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $designation = trim($_POST['designation'] ?? '');
         $phone = trim($_POST['phone'] ?? '');
         $qualification = trim($_POST['qualification'] ?? '');
+        $assigned_class = trim($_POST['assigned_class'] ?? '');
+        if ($assigned_class === 'none' || empty($assigned_class)) {
+            $assigned_class = null;
+        }
         $status = trim($_POST['status'] ?? 'approved');
         $new_password = $_POST['new_password'] ?? '';
 
@@ -97,13 +106,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 // Update teachers table
-                $tStmt = $pdo->prepare("UPDATE teachers SET full_name = :name, department = :dept, designation = :desig, phone = :phone, qualification = :qual WHERE id = :tid");
+                $tStmt = $pdo->prepare("UPDATE teachers SET full_name = :name, department = :dept, designation = :desig, phone = :phone, qualification = :qual, assigned_class = :assigned_class WHERE id = :tid");
                 $tStmt->execute([
                     'name' => $full_name,
                     'dept' => $department,
                     'desig' => $designation,
                     'phone' => $phone,
                     'qual' => $qualification,
+                    'assigned_class' => $assigned_class,
                     'tid' => $teacher_id
                 ]);
 
@@ -249,6 +259,13 @@ require_once __DIR__ . '/../includes/sidebar.php';
                             <td class="py-3.5 px-4">
                                 <div class="font-semibold text-slate-900"><?= htmlspecialchars($t['department']) ?></div>
                                 <div class="text-[11px] text-slate-500"><?= htmlspecialchars($t['designation'] ?: 'Teacher') ?></div>
+                                <?php if (!empty($t['assigned_class'])): ?>
+                                    <div class="mt-1">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300">
+                                            <i class="fa-solid fa-chalkboard-user mr-1 text-amber-600"></i> Class Teacher (<?= htmlspecialchars($t['assigned_class']) ?>)
+                                        </span>
+                                    </div>
+                                <?php endif; ?>
                             </td>
                             <td class="py-3.5 px-4 text-slate-600">
                                 <?= htmlspecialchars($t['phone'] ?: 'N/A') ?>
@@ -367,9 +384,29 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 </div>
             </div>
 
-            <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Qualifications</label>
-                <input type="text" name="qualification" placeholder="e.g. M.Sc, B.Ed (Maths)" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-sm focus:outline-none">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Qualifications</label>
+                    <input type="text" name="qualification" placeholder="e.g. M.Sc, B.Ed (Maths)" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-sm focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1">
+                        <i class="fa-solid fa-chalkboard-user mr-1 text-amber-600"></i> Allot Class Teacher For
+                    </label>
+                    <select name="assigned_class" class="w-full px-3.5 py-2.5 rounded-xl border border-amber-300 bg-amber-50/50 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500">
+                        <option value="">None (Subject Teacher Only)</option>
+                        <option value="Class 10-A">Class 10-A</option>
+                        <option value="Class 10-B">Class 10-B</option>
+                        <option value="Class 9-A">Class 9-A</option>
+                        <option value="Class 9-B">Class 9-B</option>
+                        <option value="Class 8-A">Class 8-A</option>
+                        <option value="Class 8-B">Class 8-B</option>
+                        <option value="Class 7-A">Class 7-A</option>
+                        <option value="Class 7-B">Class 7-B</option>
+                        <option value="Class 6-A">Class 6-A</option>
+                        <option value="Class 6-B">Class 6-B</option>
+                    </select>
+                </div>
             </div>
 
             <div>
@@ -450,12 +487,31 @@ require_once __DIR__ . '/../includes/sidebar.php';
                     <input type="text" name="qualification" id="edit_qualification" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-sm focus:outline-none">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Account Status</label>
-                    <select name="status" id="edit_status" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-sm focus:outline-none">
-                        <option value="approved">Approved &amp; Active</option>
-                        <option value="inactive">Inactive / Suspended</option>
+                    <label class="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1">
+                        <i class="fa-solid fa-chalkboard-user mr-1 text-amber-600"></i> Allot Class Teacher For
+                    </label>
+                    <select name="assigned_class" id="edit_assigned_class" class="w-full px-3.5 py-2.5 rounded-xl border border-amber-300 bg-amber-50/50 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500">
+                        <option value="">None (Subject Teacher Only)</option>
+                        <option value="Class 10-A">Class 10-A</option>
+                        <option value="Class 10-B">Class 10-B</option>
+                        <option value="Class 9-A">Class 9-A</option>
+                        <option value="Class 9-B">Class 9-B</option>
+                        <option value="Class 8-A">Class 8-A</option>
+                        <option value="Class 8-B">Class 8-B</option>
+                        <option value="Class 7-A">Class 7-A</option>
+                        <option value="Class 7-B">Class 7-B</option>
+                        <option value="Class 6-A">Class 6-A</option>
+                        <option value="Class 6-B">Class 6-B</option>
                     </select>
                 </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Account Status</label>
+                <select name="status" id="edit_status" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-sm focus:outline-none">
+                    <option value="approved">Approved &amp; Active</option>
+                    <option value="inactive">Inactive / Suspended</option>
+                </select>
             </div>
 
             <div class="pt-2 border-t border-slate-200">
@@ -486,6 +542,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
         document.getElementById('edit_department').value = t.department;
         document.getElementById('edit_designation').value = t.designation || '';
         document.getElementById('edit_qualification').value = t.qualification || '';
+        document.getElementById('edit_assigned_class').value = t.assigned_class || '';
         document.getElementById('edit_status').value = t.status || 'approved';
         openModal('editTeacherModal');
     }

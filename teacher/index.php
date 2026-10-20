@@ -54,6 +54,32 @@ $ttStmt = $pdo->prepare("SELECT COUNT(*) FROM timetables WHERE (teacher_name LIK
 $ttStmt->execute([$tname_param, $dept_param, $today_day]);
 $today_lectures = intval($ttStmt->fetchColumn());
 
+// Class Teacher Morning Attendance Check
+$assigned_class = $teacher_profile['assigned_class'] ?? null;
+$today_att_marked = false;
+$today_present_count = 0;
+$today_absent_count = 0;
+
+if (!empty($assigned_class)) {
+    $today_date = date('Y-m-d');
+    $attCheck = $pdo->prepare("
+        SELECT 
+            COUNT(*) as total_marked,
+            SUM(CASE WHEN a.status = 'Present' THEN 1 ELSE 0 END) as present_count,
+            SUM(CASE WHEN a.status = 'Absent' THEN 1 ELSE 0 END) as absent_count
+        FROM attendance a
+        JOIN students s ON a.student_id = s.id
+        WHERE s.class = ? AND a.date = ?
+    ");
+    $attCheck->execute([$assigned_class, $today_date]);
+    $attRow = $attCheck->fetch();
+    if ($attRow && $attRow['total_marked'] > 0) {
+        $today_att_marked = true;
+        $today_present_count = (int)$attRow['present_count'];
+        $today_absent_count = (int)$attRow['absent_count'];
+    }
+}
+
 $flash = get_flash();
 ?>
 
@@ -99,6 +125,37 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 <span><?= $flash['message'] ?></span>
             </div>
             <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-slate-600">&times;</button>
+        </div>
+    <?php endif; ?>
+
+    <!-- Class Teacher Morning Roll Call Banner -->
+    <?php if (!empty($assigned_class)): ?>
+        <div class="mb-8 p-5 rounded-3xl <?= $today_att_marked ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-300 text-amber-950 shadow-sm' ?> border flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-center space-x-3.5">
+                <div class="w-12 h-12 rounded-2xl <?= $today_att_marked ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white' ?> flex items-center justify-center font-bold text-xl shadow-md">
+                    <i class="fa-solid fa-chalkboard-user"></i>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full <?= $today_att_marked ? 'bg-emerald-200 text-emerald-800' : 'bg-amber-200 text-amber-900 animate-pulse' ?>">
+                            <?= $today_att_marked ? 'Attendance Done' : 'Action Required Today' ?>
+                        </span>
+                        <span class="text-xs font-bold <?= $today_att_marked ? 'text-emerald-700' : 'text-amber-700' ?>">Class Teacher: <?= htmlspecialchars($assigned_class) ?></span>
+                    </div>
+                    <h3 class="text-base font-extrabold mt-0.5 <?= $today_att_marked ? 'text-emerald-950' : 'text-amber-950' ?>">
+                        <?= $today_att_marked ? "Today's Attendance Recorded for " . htmlspecialchars($assigned_class) : "Morning Roll Call for " . htmlspecialchars($assigned_class) . " is Pending" ?>
+                    </h3>
+                    <p class="text-xs <?= $today_att_marked ? 'text-emerald-700' : 'text-amber-800/90' ?>">
+                        <?= $today_att_marked ? "Summary: {$today_present_count} Present &bull; {$today_absent_count} Absent on " . date('d M Y') : "As the Class Teacher, please take morning attendance at the start of the school day." ?>
+                    </p>
+                </div>
+            </div>
+            <div>
+                <a href="/teacher/attendance.php?class=<?= urlencode($assigned_class) ?>" class="inline-flex items-center px-4 py-2.5 rounded-xl <?= $today_att_marked ? 'bg-white hover:bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-navy-800 hover:bg-navy-900 text-white shadow-md' ?> text-xs font-bold transition">
+                    <i class="fa-solid fa-clipboard-user mr-2 text-amber-400"></i>
+                    <?= $today_att_marked ? 'Review / Edit Register' : 'Take Morning Attendance Now' ?> &rarr;
+                </a>
+            </div>
         </div>
     <?php endif; ?>
 
