@@ -57,6 +57,12 @@ if ($role === 'admin') {
             'active' => strpos($current_uri, '/admin/leaves.php') !== false
         ],
         [
+            'title' => 'Database Explorer',
+            'url' => '/admin/database.php',
+            'icon' => 'fa-solid fa-database',
+            'active' => strpos($current_uri, '/admin/database.php') !== false
+        ],
+        [
             'title' => 'System Settings',
             'url' => '/admin/settings.php',
             'icon' => 'fa-solid fa-sliders',
