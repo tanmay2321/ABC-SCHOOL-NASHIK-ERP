@@ -37,32 +37,58 @@ $designated_ct_name = $ctStmt->fetchColumn();
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_attendance'])) {
     $att_date = $_POST['date'] ?? date('Y-m-d');
     $att_class = $_POST['class'] ?? 'Class 10-A';
-    $status_data = $_POST['status'] ?? []; // student_id => 'Present'/'Absent'/'Late'
+    $all_students = $_POST['all_students'] ?? [];
+    $present_data = $_POST['present'] ?? []; // student_id => "1"
     $remarks_data = $_POST['remarks'] ?? [];
+
+    // Fallback if legacy form status array submitted
+    $legacy_status = $_POST['status'] ?? [];
 
     try {
         $pdo->beginTransaction();
 
-        foreach ($status_data as $student_id => $status) {
-            $student_id = (int)$student_id;
-            $remark = trim($remarks_data[$student_id] ?? '');
+        // If all_students is passed from tickbox sheet
+        if (!empty($all_students)) {
+            foreach ($all_students as $student_id) {
+                $student_id = (int)$student_id;
+                $status = isset($present_data[$student_id]) ? 'Present' : 'Absent';
+                $remark = trim($remarks_data[$student_id] ?? '');
 
-            // Check if attendance already recorded for this student & date
-            $check = $pdo->prepare("SELECT id FROM attendance WHERE student_id = :sid AND date = :dt LIMIT 1");
-            $check->execute(['sid' => $student_id, 'dt' => $att_date]);
-            $existing_id = $check->fetchColumn();
+                $check = $pdo->prepare("SELECT id FROM attendance WHERE student_id = :sid AND date = :dt LIMIT 1");
+                $check->execute(['sid' => $student_id, 'dt' => $att_date]);
+                $existing_id = $check->fetchColumn();
 
-            if ($existing_id) {
-                $uStmt = $pdo->prepare("UPDATE attendance SET status = :st, remarks = :rmk, marked_by = :mb WHERE id = :id");
-                $uStmt->execute(['st' => $status, 'rmk' => $remark, 'mb' => $teacher_user_id, 'id' => $existing_id]);
-            } else {
-                $iStmt = $pdo->prepare("INSERT INTO attendance (student_id, date, status, remarks, marked_by) VALUES (:sid, :dt, :st, :rmk, :mb)");
-                $iStmt->execute(['sid' => $student_id, 'dt' => $att_date, 'st' => $status, 'rmk' => $remark, 'mb' => $teacher_user_id]);
+                if ($existing_id) {
+                    $uStmt = $pdo->prepare("UPDATE attendance SET status = :st, remarks = :rmk, marked_by = :mb WHERE id = :id");
+                    $uStmt->execute(['st' => $status, 'rmk' => $remark, 'mb' => $teacher_user_id, 'id' => $existing_id]);
+                } else {
+                    $iStmt = $pdo->prepare("INSERT INTO attendance (student_id, date, status, remarks, marked_by) VALUES (:sid, :dt, :st, :rmk, :mb)");
+                    $iStmt->execute(['sid' => $student_id, 'dt' => $att_date, 'st' => $status, 'rmk' => $remark, 'mb' => $teacher_user_id]);
+                }
+            }
+        } elseif (!empty($legacy_status)) {
+            foreach ($legacy_status as $student_id => $status) {
+                $student_id = (int)$student_id;
+                $remark = trim($remarks_data[$student_id] ?? '');
+
+                $check = $pdo->prepare("SELECT id FROM attendance WHERE student_id = :sid AND date = :dt LIMIT 1");
+                $check->execute(['sid' => $student_id, 'dt' => $att_date]);
+                $existing_id = $check->fetchColumn();
+
+                if ($existing_id) {
+                    $uStmt = $pdo->prepare("UPDATE attendance SET status = :st, remarks = :rmk, marked_by = :mb WHERE id = :id");
+                    $uStmt->execute(['st' => $status, 'rmk' => $remark, 'mb' => $teacher_user_id, 'id' => $existing_id]);
+                } else {
+                    $iStmt = $pdo->prepare("INSERT INTO attendance (student_id, date, status, remarks, marked_by) VALUES (:sid, :dt, :st, :rmk, :mb)");
+                    $iStmt->execute(['sid' => $student_id, 'dt' => $att_date, 'st' => $status, 'rmk' => $remark, 'mb' => $teacher_user_id]);
+                }
             }
         }
 
         $pdo->commit();
-        set_flash('success', "Attendance for {$att_class} on " . date('d M Y', strtotime($att_date)) . " has been saved successfully!");
+        $p_count = count($present_data);
+        $a_count = max(0, count($all_students) - $p_count);
+        set_flash('success', "Attendance for {$att_class} on " . date('d M Y', strtotime($att_date)) . " saved successfully! ({$p_count} Present, {$a_count} Absent)");
         header("Location: /teacher/attendance.php?class=" . urlencode($att_class) . "&date=" . urlencode($att_date));
         exit();
     } catch (Exception $e) {
@@ -219,14 +245,24 @@ require_once __DIR__ . '/../includes/sidebar.php';
                     </div>
                     <div>
                         <h2 class="text-sm font-bold text-slate-900">Roster for <?= htmlspecialchars($class) ?></h2>
-                        <p class="text-xs text-slate-500">Date: <?= date('d M Y', strtotime($date)) ?> &bull; <?= count($students) ?> Students in list</p>
+                        <p class="text-xs text-slate-500">
+                            Date: <?= date('d M Y', strtotime($date)) ?> &bull; 
+                            <span id="attendanceSummaryCounter" class="font-medium text-slate-700">
+                                <?= count($students) ?> Students enrolled
+                            </span>
+                        </p>
                     </div>
                 </div>
 
-                <!-- Quick Action: Mark All Present -->
-                <div>
-                    <button type="button" onclick="markAll('Present')" class="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-xs transition">
-                        <i class="fa-solid fa-check-double mr-1"></i> Quick: Mark All Present
+                <!-- Quick Action: Tick/Untick All -->
+                <div class="flex items-center space-x-2">
+                    <button type="button" onclick="setAllPresent(true)" class="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs transition flex items-center space-x-1.5 shadow-2xs">
+                        <i class="fa-solid fa-square-check text-emerald-600"></i>
+                        <span>Tick All Present</span>
+                    </button>
+                    <button type="button" onclick="setAllPresent(false)" class="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 font-bold text-xs transition flex items-center space-x-1.5 shadow-2xs">
+                        <i class="fa-regular fa-square text-rose-600"></i>
+                        <span>Untick All (Absent)</span>
                     </button>
                 </div>
             </div>
@@ -239,18 +275,26 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
-                            <tr class="bg-slate-50 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-200">
+                            <tr class="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
                                 <th class="py-3 px-4 sm:px-6">Roll No</th>
                                 <th class="py-3 px-4">Student Name</th>
                                 <th class="py-3 px-4">Student ID</th>
-                                <th class="py-3 px-4 sm:px-6 text-center">Status</th>
+                                <th class="py-3 px-4 sm:px-6 text-center">
+                                    <div class="inline-flex items-center space-x-2">
+                                        <input type="checkbox" id="masterToggle" title="Master Toggle: Tick/Untick All" 
+                                               class="w-4 h-4 rounded text-emerald-600 accent-emerald-600 cursor-pointer"
+                                               onchange="setAllPresent(this.checked)">
+                                        <span>Status (Tick = Present)</span>
+                                    </div>
+                                </th>
                                 <th class="py-3 px-4 sm:px-6">Remarks (Optional)</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 text-xs">
                             <?php foreach ($students as $s): ?>
                                 <?php 
-                                    $current_status = $recorded_attendance[$s['id']]['status'] ?? 'Present'; 
+                                    $has_record = isset($recorded_attendance[$s['id']]);
+                                    $is_present = $has_record ? ($recorded_attendance[$s['id']]['status'] === 'Present') : true;
                                     $current_remarks = $recorded_attendance[$s['id']]['remarks'] ?? '';
                                 ?>
                                 <tr class="hover:bg-slate-50/70 transition">
@@ -264,34 +308,21 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                     <td class="py-3.5 px-4 font-mono font-bold text-blue-700">
                                         <?= htmlspecialchars($s['student_code']) ?>
                                     </td>
-                                    <td class="py-3.5 px-4 sm:px-6 text-center">
-                                        <div class="inline-flex rounded-xl p-1 bg-slate-100 border border-slate-200 space-x-1">
+                                    <td class="py-3.5 px-4 sm:px-6 text-center whitespace-nowrap">
+                                        <input type="hidden" name="all_students[]" value="<?= $s['id'] ?>">
+                                        <label class="inline-flex items-center space-x-2.5 cursor-pointer select-none group py-1 px-2 rounded-xl hover:bg-slate-100 transition">
+                                            <input type="checkbox" 
+                                                   name="present[<?= $s['id'] ?>]" 
+                                                   value="1" 
+                                                   class="att-checkbox w-5 h-5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 accent-emerald-600 cursor-pointer"
+                                                   <?= $is_present ? 'checked' : '' ?>
+                                                   onchange="updateStatusBadge(this)">
                                             
-                                            <!-- Present -->
-                                            <label class="cursor-pointer">
-                                                <input type="radio" name="status[<?= $s['id'] ?>]" value="Present" class="sr-only peer status-present" <?= ($current_status === 'Present') ? 'checked' : '' ?>>
-                                                <span class="px-3 py-1 rounded-lg text-xs font-bold block transition peer-checked:bg-emerald-600 peer-checked:text-white text-slate-600 hover:bg-slate-200">
-                                                    Present
-                                                </span>
-                                            </label>
-
-                                            <!-- Absent -->
-                                            <label class="cursor-pointer">
-                                                <input type="radio" name="status[<?= $s['id'] ?>]" value="Absent" class="sr-only peer status-absent" <?= ($current_status === 'Absent') ? 'checked' : '' ?>>
-                                                <span class="px-3 py-1 rounded-lg text-xs font-bold block transition peer-checked:bg-rose-600 peer-checked:text-white text-slate-600 hover:bg-slate-200">
-                                                    Absent
-                                                </span>
-                                            </label>
-
-                                            <!-- Late -->
-                                            <label class="cursor-pointer">
-                                                <input type="radio" name="status[<?= $s['id'] ?>]" value="Late" class="sr-only peer status-late" <?= ($current_status === 'Late') ? 'checked' : '' ?>>
-                                                <span class="px-3 py-1 rounded-lg text-xs font-bold block transition peer-checked:bg-amber-500 peer-checked:text-white text-slate-600 hover:bg-slate-200">
-                                                    Late
-                                                </span>
-                                            </label>
-
-                                        </div>
+                                            <span class="status-badge px-3 py-1 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 <?= $is_present ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-rose-100 text-rose-800 border border-rose-300' ?>">
+                                                <i class="badge-icon fa-solid <?= $is_present ? 'fa-check text-emerald-700' : 'fa-xmark text-rose-700' ?>"></i>
+                                                <span class="badge-text"><?= $is_present ? 'Present' : 'Absent' ?></span>
+                                            </span>
+                                        </label>
                                     </td>
                                     <td class="py-3.5 px-4 sm:px-6">
                                         <input type="text" name="remarks[<?= $s['id'] ?>]" value="<?= htmlspecialchars($current_remarks) ?>" placeholder="Optional note..." 
@@ -303,11 +334,12 @@ require_once __DIR__ . '/../includes/sidebar.php';
                     </table>
                 </div>
 
-                <div class="p-4 sm:p-6 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+                <div class="p-4 sm:p-6 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <span class="text-xs text-slate-500">
-                        Attendance will be immediately accessible on Student &amp; Parent Dashboards.
+                        <i class="fa-solid fa-circle-info text-blue-500 mr-1"></i>
+                        Checked boxes indicate <strong>Present</strong>. Unchecked boxes indicate <strong>Absent</strong>.
                     </span>
-                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-navy-800 hover:bg-navy-900 text-white font-bold text-xs shadow-md transition flex items-center space-x-2">
+                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-navy-800 hover:bg-navy-900 text-white font-bold text-xs shadow-md transition flex items-center justify-center space-x-2">
                         <i class="fa-solid fa-floppy-disk text-amber-400"></i>
                         <span>Save &amp; Submit Attendance</span>
                     </button>
@@ -319,11 +351,43 @@ require_once __DIR__ . '/../includes/sidebar.php';
 </main>
 
 <script>
-    function markAll(status) {
-        if (status === 'Present') {
-            document.querySelectorAll('.status-present').forEach(el => el.checked = true);
+    function updateStatusBadge(checkbox) {
+        const badge = checkbox.closest('label').querySelector('.status-badge');
+        const icon = badge.querySelector('.badge-icon');
+        const text = badge.querySelector('.badge-text');
+        if (checkbox.checked) {
+            badge.className = 'status-badge px-3 py-1 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 bg-emerald-100 text-emerald-800 border border-emerald-300';
+            icon.className = 'badge-icon fa-solid fa-check text-emerald-700';
+            text.textContent = 'Present';
+        } else {
+            badge.className = 'status-badge px-3 py-1 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 bg-rose-100 text-rose-800 border border-rose-300';
+            icon.className = 'badge-icon fa-solid fa-xmark text-rose-700';
+            text.textContent = 'Absent';
+        }
+        updateCounter();
+    }
+
+    function setAllPresent(val) {
+        document.querySelectorAll('.att-checkbox').forEach(cb => {
+            cb.checked = val;
+            updateStatusBadge(cb);
+        });
+        const master = document.getElementById('masterToggle');
+        if (master) master.checked = val;
+        updateCounter();
+    }
+
+    function updateCounter() {
+        const total = document.querySelectorAll('.att-checkbox').length;
+        const present = document.querySelectorAll('.att-checkbox:checked').length;
+        const absent = total - present;
+        const counterEl = document.getElementById('attendanceSummaryCounter');
+        if (counterEl) {
+            counterEl.innerHTML = `<span class="text-emerald-700 font-bold">${present} Present</span> &bull; <span class="text-rose-700 font-bold">${absent} Absent</span> (Total: ${total})`;
         }
     }
+
+    document.addEventListener('DOMContentLoaded', updateCounter);
 </script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

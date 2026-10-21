@@ -24,7 +24,7 @@ function init_database($pdo) {
             username TEXT UNIQUE NOT NULL,
             email TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
-            role TEXT CHECK(role IN ('admin', 'teacher', 'student')) NOT NULL,
+            role TEXT CHECK(role IN ('admin', 'principal', 'vice_principal', 'teacher', 'student')) NOT NULL,
             status TEXT CHECK(status IN ('pending', 'approved', 'rejected', 'active', 'inactive')) DEFAULT 'approved',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -197,6 +197,28 @@ function init_database($pdo) {
         $pdo->exec("ALTER TABLE teachers ADD COLUMN assigned_class TEXT DEFAULT NULL;");
     }
 
+    // Migration: ensure users table supports principal & vice_principal roles
+    $user_sql = $pdo->query("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'")->fetchColumn();
+    if ($user_sql && strpos($user_sql, "'principal'") === false) {
+        $pdo->exec("PRAGMA foreign_keys = OFF;");
+        $pdo->exec("
+            CREATE TABLE users_migrated (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                role TEXT CHECK(role IN ('admin', 'principal', 'vice_principal', 'teacher', 'student')) NOT NULL,
+                status TEXT CHECK(status IN ('pending', 'approved', 'rejected', 'active', 'inactive')) DEFAULT 'approved',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+            INSERT INTO users_migrated SELECT id, username, email, password, role, status, created_at, updated_at FROM users;
+            DROP TABLE users;
+            ALTER TABLE users_migrated RENAME TO users;
+        ");
+        $pdo->exec("PRAGMA foreign_keys = ON;");
+    }
+
     // 2. Ensure Single Admin Account Exists (admin@edu.in / Admin@1234)
     $admin_email = 'admin@edu.in';
     $admin_check = $pdo->prepare("SELECT id FROM users WHERE email = ? OR username = ? OR role = 'admin' LIMIT 1");
@@ -216,12 +238,17 @@ function init_database($pdo) {
     // 3. Default Institution Settings
     $defaults = [
         'school_name' => 'ABC Senior Secondary School Nashik',
+        'school_city' => 'Nashik',
         'school_affiliation' => 'CBSE Board Affiliation #113042',
         'school_address' => 'Gangapur Road, Nashik, Maharashtra 422013',
         'school_phone' => '+91 253 2570000 / +91 98230 12345',
         'school_email' => 'info@abcschoolnashik.edu.in',
-        'admin_name' => 'Principal / Head Admin',
-        'admin_designation' => 'Principal & Executive Administrator',
+        'admin_name' => 'System Administrator',
+        'admin_designation' => 'IT & Systems Head Administrator',
+        'principal_name' => 'Dr. R. K. Sharma',
+        'principal_designation' => 'Head Principal',
+        'vice_principal_name' => 'Prof. S. M. Deshmukh',
+        'vice_principal_designation' => 'Vice Principal (Academics)',
         'school_logo' => ''
     ];
 

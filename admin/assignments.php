@@ -5,7 +5,7 @@
  * Principal / Head Administrator complete access to faculty homework tasks & student submissions
  */
 require_once __DIR__ . '/../includes/auth.php';
-require_auth('admin');
+require_auth(['admin', 'principal', 'vice_principal']);
 
 $flash = get_flash();
 $class_filter = $_GET['class'] ?? 'all';

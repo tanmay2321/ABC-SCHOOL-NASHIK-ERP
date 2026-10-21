@@ -5,7 +5,7 @@
  * Full administrative control over school fee structures, collections, invoices, and receipts
  */
 require_once __DIR__ . '/../includes/auth.php';
-require_auth('admin');
+require_auth(['admin', 'principal']);
 
 $error = '';
 $flash = get_flash();

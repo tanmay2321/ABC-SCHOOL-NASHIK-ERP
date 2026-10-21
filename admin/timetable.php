@@ -7,7 +7,7 @@
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 
-require_auth('admin');
+require_auth(['admin', 'principal', 'vice_principal']);
 
 $success = $_SESSION['success'] ?? null;
 $error = $_SESSION['error'] ?? null;

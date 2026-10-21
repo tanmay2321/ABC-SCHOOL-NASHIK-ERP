@@ -11,10 +11,11 @@ $page_title = $page_title ?? 'ABC School Nashik ERP';
 
 $school_logo = get_setting($pdo, 'school_logo', '');
 $school_name = get_setting($pdo, 'school_name', 'ABC School Nashik');
+$school_city = get_setting($pdo, 'school_city', 'Nashik');
 
-// Pending approvals count for badge (if admin)
+// Pending approvals count for badge (if admin or principal)
 $pending_count = 0;
-if ($current_user && $current_user['role'] === 'admin') {
+if ($current_user && in_array($current_user['role'], ['admin', 'principal'])) {
     try {
         $pending_count = $pdo->query("SELECT COUNT(*) FROM users WHERE role = 'student' AND status = 'pending'")->fetchColumn();
     } catch(Exception $e) {
@@ -27,7 +28,7 @@ if ($current_user && $current_user['role'] === 'admin') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($page_title) ?> - ABC School Nashik ERP</title>
+    <title><?= htmlspecialchars($page_title) ?> - <?= htmlspecialchars($school_name) ?></title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -72,27 +73,27 @@ if ($current_user && $current_user['role'] === 'admin') {
                         <i class="fa-solid fa-bars text-xl"></i>
                     </button>
                     
-                    <a href="/" class="flex items-center space-x-3 group">
+                    <a href="/" class="flex items-center space-x-2 sm:space-x-3 group min-w-0">
                         <?php if (!empty($school_logo) && file_exists(__DIR__ . '/../' . ltrim($school_logo, '/'))): ?>
-                            <img src="<?= htmlspecialchars($school_logo) ?>" alt="School Logo" class="w-10 h-10 object-contain rounded-xl shadow-md p-1 bg-white border border-slate-200 group-hover:scale-105 transition-transform">
+                            <img src="<?= htmlspecialchars($school_logo) ?>" alt="School Logo" class="w-9 h-9 sm:w-10 sm:h-10 object-contain rounded-xl shadow-md p-1 bg-white border border-slate-200 group-hover:scale-105 transition-transform shrink-0">
                         <?php else: ?>
-                            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-navy-900 to-navy-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
-                                <i class="fa-solid fa-school text-lg text-amber-400"></i>
+                            <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-navy-900 to-navy-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform shrink-0">
+                                <i class="fa-solid fa-school text-base sm:text-lg text-amber-400"></i>
                             </div>
                         <?php endif; ?>
-                        <div>
-                            <span class="text-base sm:text-lg font-bold tracking-tight text-navy-950 font-['Outfit'] block leading-tight truncate max-w-[180px] sm:max-w-xs"><?= htmlspecialchars($school_name) ?></span>
-                            <span class="text-[10px] sm:text-xs font-semibold tracking-wider text-amber-600 uppercase block">Nashik • ERP Portal</span>
+                        <div class="min-w-0">
+                            <span class="text-xs sm:text-sm md:text-base font-bold tracking-tight text-navy-950 font-['Outfit'] block leading-tight truncate max-w-[130px] xs:max-w-[180px] sm:max-w-xs md:max-w-md lg:max-w-xl" title="<?= htmlspecialchars($school_name) ?>"><?= htmlspecialchars($school_name) ?></span>
+                            <span class="text-[9px] sm:text-[11px] font-semibold tracking-wider text-amber-600 uppercase block truncate"><?= htmlspecialchars($school_city) ?> • ERP Portal</span>
                         </div>
                     </a>
                 </div>
 
                 <!-- Right: Profile & Action Menu -->
-                <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-2 sm:space-x-4 shrink-0">
                     <!-- Quick notification badge -->
-                    <?php if ($current_user && $current_user['role'] === 'admin' && $pending_count > 0): ?>
+                    <?php if ($current_user && in_array($current_user['role'], ['admin', 'principal']) && $pending_count > 0): ?>
                         <a href="/admin/students.php?tab=pending" class="relative p-2 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all" title="<?= $pending_count ?> Students Pending Approval">
-                            <i class="fa-solid fa-user-clock text-lg"></i>
+                            <i class="fa-solid fa-user-clock text-base sm:text-lg"></i>
                             <span class="absolute top-1 right-1 flex h-4 w-4">
                                 <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
                                 <span class="relative inline-flex rounded-full h-4 w-4 bg-amber-500 text-[10px] font-bold text-white items-center justify-center"><?= $pending_count ?></span>
@@ -102,22 +103,47 @@ if ($current_user && $current_user['role'] === 'admin') {
 
                     <!-- Role Badge & User Information -->
                     <?php if ($current_user): ?>
-                        <div class="flex items-center space-x-3 pl-2 border-l border-slate-200">
-                            <div class="hidden sm:block text-right">
-                                <p class="text-sm font-semibold text-slate-900 leading-tight"><?= htmlspecialchars($current_user['name']) ?></p>
-                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium 
-                                    <?= $current_user['role'] === 'admin' ? 'bg-purple-100 text-purple-800' : ($current_user['role'] === 'teacher' ? 'bg-blue-100 text-blue-800' : 'bg-emerald-100 text-emerald-800') ?>">
-                                    <i class="fa-solid <?= $current_user['role'] === 'admin' ? 'fa-shield-halved' : ($current_user['role'] === 'teacher' ? 'fa-chalkboard-user' : 'fa-user-graduate') ?> text-[10px] mr-1"></i>
-                                    <?= ucfirst($current_user['role']) ?>
+                        <?php
+                            $role_badge = 'bg-slate-100 text-slate-800';
+                            $role_icon = 'fa-user';
+                            $role_label = ucfirst($current_user['role']);
+                            if ($current_user['role'] === 'admin') {
+                                $role_badge = 'bg-purple-100 text-purple-800 border border-purple-200';
+                                $role_icon = 'fa-shield-halved';
+                                $role_label = 'Admin';
+                            } elseif ($current_user['role'] === 'principal') {
+                                $role_badge = 'bg-amber-100 text-amber-900 border border-amber-300';
+                                $role_icon = 'fa-award';
+                                $role_label = 'Principal';
+                            } elseif ($current_user['role'] === 'vice_principal') {
+                                $role_badge = 'bg-teal-100 text-teal-800 border border-teal-200';
+                                $role_icon = 'fa-user-tie';
+                                $role_label = 'Vice Principal';
+                            } elseif ($current_user['role'] === 'teacher') {
+                                $role_badge = 'bg-blue-100 text-blue-800 border border-blue-200';
+                                $role_icon = 'fa-chalkboard-user';
+                                $role_label = 'Teacher';
+                            } elseif ($current_user['role'] === 'student') {
+                                $role_badge = 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+                                $role_icon = 'fa-user-graduate';
+                                $role_label = 'Student';
+                            }
+                        ?>
+                        <div class="flex items-center space-x-2 sm:space-x-3 pl-2 border-l border-slate-200">
+                            <div class="hidden md:block text-right min-w-0 max-w-[150px]">
+                                <p class="text-xs font-bold text-slate-900 leading-tight truncate" title="<?= htmlspecialchars($current_user['name']) ?>"><?= htmlspecialchars($current_user['name']) ?></p>
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold <?= $role_badge ?> mt-0.5">
+                                    <i class="fa-solid <?= $role_icon ?> text-[9px] mr-1"></i>
+                                    <?= $role_label ?>
                                 </span>
                             </div>
                             
-                            <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-navy-800 to-blue-600 text-white font-bold flex items-center justify-center text-sm shadow-sm">
+                            <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-tr from-navy-800 to-blue-600 text-white font-bold flex items-center justify-center text-xs sm:text-sm shadow-sm shrink-0" title="<?= htmlspecialchars($current_user['name']) ?>">
                                 <?= strtoupper(substr($current_user['name'], 0, 1)) ?>
                             </div>
 
-                            <a href="/logout.php" class="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition" title="Logout">
-                                <i class="fa-solid fa-arrow-right-from-bracket text-base"></i>
+                            <a href="/logout.php" class="p-1.5 sm:p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition" title="Logout">
+                                <i class="fa-solid fa-arrow-right-from-bracket text-sm sm:text-base"></i>
                             </a>
                         </div>
                     <?php else: ?>

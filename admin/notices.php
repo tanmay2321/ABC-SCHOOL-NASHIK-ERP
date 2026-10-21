@@ -4,7 +4,7 @@
  * ABC School Nashik ERP
  */
 require_once __DIR__ . '/../includes/auth.php';
-require_auth('admin');
+require_auth(['admin', 'principal', 'vice_principal']);
 
 $error = '';
 $flash = get_flash();

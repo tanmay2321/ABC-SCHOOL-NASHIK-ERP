@@ -9,6 +9,7 @@ $stats = get_school_stats($pdo);
 
 $school_logo = get_setting($pdo, 'school_logo', '');
 $school_name = get_setting($pdo, 'school_name', 'ABC School Nashik');
+$school_city = get_setting($pdo, 'school_city', 'Nashik');
 $school_phone = get_setting($pdo, 'school_phone', '+91 (0253) 234-5678');
 $school_email = get_setting($pdo, 'school_email', 'contact@abcschoolnashik.edu');
 $school_address = get_setting($pdo, 'school_address', 'Gangapur Road, Nashik, Maharashtra 422013');
@@ -19,7 +20,7 @@ $school_affiliation = get_setting($pdo, 'school_affiliation', 'CBSE Affiliation 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ABC School Nashik - Official School Portal & ERP</title>
+    <title><?= htmlspecialchars($school_name) ?> - Official School Portal &amp; ERP</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -54,13 +55,13 @@ $school_affiliation = get_setting($pdo, 'school_affiliation', 'CBSE Affiliation 
     <!-- Top Info Bar -->
     <div class="bg-navy-950 text-slate-300 text-xs py-2 px-4 sm:px-8 border-b border-navy-800">
         <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
-            <div class="flex items-center space-x-6">
-                <span><i class="fa-solid fa-location-dot text-amber-400 mr-1.5"></i> Gangapur Road, Nashik, Maharashtra 422013</span>
-                <span class="hidden md:inline"><i class="fa-solid fa-phone text-amber-400 mr-1.5"></i> +91 (0253) 234-5678</span>
-                <span class="hidden lg:inline"><i class="fa-solid fa-envelope text-amber-400 mr-1.5"></i> contact@abcschoolnashik.edu</span>
+            <div class="flex items-center flex-wrap justify-center sm:justify-start gap-x-6 gap-y-1">
+                <span><i class="fa-solid fa-location-dot text-amber-400 mr-1.5"></i> <?= htmlspecialchars($school_address) ?></span>
+                <span class="hidden md:inline"><i class="fa-solid fa-phone text-amber-400 mr-1.5"></i> <?= htmlspecialchars($school_phone) ?></span>
+                <span class="hidden lg:inline"><i class="fa-solid fa-envelope text-amber-400 mr-1.5"></i> <?= htmlspecialchars($school_email) ?></span>
             </div>
-            <div class="flex items-center space-x-4">
-                <span class="text-amber-400 font-medium"><i class="fa-solid fa-certificate mr-1"></i> CBSE Affiliation No: 113042</span>
+            <div class="flex items-center space-x-4 shrink-0">
+                <span class="text-amber-400 font-medium"><i class="fa-solid fa-certificate mr-1"></i> <?= htmlspecialchars($school_affiliation) ?></span>
                 <span>&bull;</span>
                 <a href="/login.php" class="text-white hover:text-amber-300 font-semibold transition">ERP Login &rarr;</a>
             </div>
@@ -72,17 +73,17 @@ $school_affiliation = get_setting($pdo, 'school_affiliation', 'CBSE Affiliation 
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-20">
                 <!-- Brand / Logo -->
-                <a href="/" class="flex items-center space-x-3.5">
+                <a href="/" class="flex items-center space-x-3.5 min-w-0 pr-2">
                     <?php if (!empty($school_logo) && file_exists(__DIR__ . '/' . ltrim($school_logo, '/'))): ?>
-                        <img src="<?= htmlspecialchars($school_logo) ?>" alt="School Logo" class="w-12 h-12 object-contain rounded-2xl shadow-lg shadow-blue-500/10 p-1 bg-white border border-slate-200">
+                        <img src="<?= htmlspecialchars($school_logo) ?>" alt="School Logo" class="w-12 h-12 object-contain rounded-2xl shadow-lg shadow-blue-500/10 p-1 bg-white border border-slate-200 shrink-0">
                     <?php else: ?>
-                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-navy-900 to-navy-700 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-navy-900 to-navy-700 flex items-center justify-center text-white shadow-lg shadow-blue-500/20 shrink-0">
                             <i class="fa-solid fa-school text-2xl text-amber-400"></i>
                         </div>
                     <?php endif; ?>
-                    <div>
-                        <span class="text-xl sm:text-2xl font-extrabold tracking-tight text-navy-950 font-['Outfit'] block leading-none"><?= htmlspecialchars(strtoupper($school_name)) ?></span>
-                        <span class="text-xs font-bold tracking-widest text-amber-600 uppercase block mt-1">Nashik • Excellence in Education</span>
+                    <div class="min-w-0">
+                        <span class="text-base sm:text-xl lg:text-2xl font-extrabold tracking-tight text-navy-950 font-['Outfit'] block leading-tight break-words max-w-[170px] xs:max-w-[240px] sm:max-w-md lg:max-w-xl" title="<?= htmlspecialchars($school_name) ?>"><?= htmlspecialchars(strtoupper($school_name)) ?></span>
+                        <span class="text-[10px] sm:text-xs font-bold tracking-widest text-amber-600 uppercase block mt-0.5 truncate"><?= htmlspecialchars($school_city) ?> • Excellence in Education</span>
                     </div>
                 </a>
 
@@ -125,8 +126,8 @@ $school_affiliation = get_setting($pdo, 'school_affiliation', 'CBSE Affiliation 
                         <span>Official Unified School ERP Platform</span>
                     </div>
 
-                    <h1 class="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight font-['Outfit'] leading-tight">
-                        Empowering Future Leaders at <span class="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-200 to-yellow-400">ABC School Nashik</span>
+                    <h1 class="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight font-['Outfit'] leading-tight break-words">
+                        Empowering Future Leaders at <span class="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-200 to-yellow-400"><?= htmlspecialchars($school_name) ?></span>
                     </h1>
 
                     <p class="text-base sm:text-lg text-slate-300 max-w-2xl leading-relaxed">
@@ -252,7 +253,7 @@ $school_affiliation = get_setting($pdo, 'school_affiliation', 'CBSE Affiliation 
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                 <div>
                     <h2 class="text-2xl font-bold text-slate-900 font-['Outfit']">Official School Notices &amp; Circulars</h2>
-                    <p class="text-sm text-slate-500">Stay informed with updates from ABC School Administration, Nashik</p>
+                    <p class="text-sm text-slate-500">Stay informed with updates from <?= htmlspecialchars($school_name) ?> Administration, <?= htmlspecialchars($school_city) ?></p>
                 </div>
                 <a href="/login.php" class="text-sm font-semibold text-navy-700 hover:text-navy-900 flex items-center">
                     <span>View all announcements in ERP</span>
@@ -292,13 +293,13 @@ $school_affiliation = get_setting($pdo, 'school_affiliation', 'CBSE Affiliation 
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-3 gap-8">
             <div>
                 <div class="flex items-center space-x-3 mb-4">
-                    <div class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
+                    <div class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold shrink-0">
                         <i class="fa-solid fa-graduation-cap"></i>
                     </div>
-                    <span class="text-lg font-bold text-white font-['Outfit']">ABC School Nashik</span>
+                    <span class="text-lg font-bold text-white font-['Outfit'] break-words"><?= htmlspecialchars($school_name) ?></span>
                 </div>
                 <p class="text-xs text-slate-400 leading-relaxed">
-                    Committed to holistic education, moral integrity, and technological innovation. Providing premier primary and senior secondary schooling in the heart of Nashik.
+                    Committed to holistic education, moral integrity, and technological innovation. Providing premier primary and senior secondary schooling in the heart of <?= htmlspecialchars($school_city) ?>.
                 </p>
             </div>
 
@@ -315,15 +316,14 @@ $school_affiliation = get_setting($pdo, 'school_affiliation', 'CBSE Affiliation 
             <div>
                 <h4 class="text-white font-semibold mb-3 font-['Outfit']">Campus Contact</h4>
                 <p class="text-xs text-slate-400 leading-relaxed mb-2">
-                    ABC School Campus, Off Gangapur Road,<br>
-                    Nashik, Maharashtra - 422013, India
+                    <?= htmlspecialchars($school_address) ?>
                 </p>
-                <p class="text-xs text-slate-400">Phone: +91 (0253) 234-5678 / 5679</p>
-                <p class="text-xs text-slate-400">Email: office@abcschoolnashik.edu</p>
+                <p class="text-xs text-slate-400">Phone: <?= htmlspecialchars($school_phone) ?></p>
+                <p class="text-xs text-slate-400">Email: <?= htmlspecialchars($school_email) ?></p>
             </div>
         </div>
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 pt-6 border-t border-slate-800 text-xs text-center text-slate-500">
-            &copy; <?= date('Y') ?> ABC Senior Secondary School Nashik. All Rights Reserved. ERP System Powered by PHP &amp; SQLite.
+            &copy; <?= date('Y') ?> <?= htmlspecialchars($school_name) ?>. All Rights Reserved. ERP System Powered by PHP &amp; SQLite.
         </div>
     </footer>
 

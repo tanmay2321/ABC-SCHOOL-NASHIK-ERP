@@ -7,7 +7,7 @@ require_once __DIR__ . '/includes/auth.php';
 // Redirect if already logged in
 if (is_logged_in()) {
     $role = $_SESSION['role'];
-    if ($role === 'admin') header("Location: /admin/index.php");
+    if (in_array($role, ['admin', 'principal', 'vice_principal'])) header("Location: /admin/index.php");
     elseif ($role === 'teacher') header("Location: /teacher/index.php");
     else header("Location: /student/index.php");
     exit();
@@ -19,6 +19,7 @@ $flash = get_flash();
 
 $school_logo = get_setting($pdo, 'school_logo', '');
 $school_name = get_setting($pdo, 'school_name', 'ABC School Nashik');
+$school_city = get_setting($pdo, 'school_city', 'Nashik');
 
 // Status flags from redirect
 if (isset($_GET['logged_out'])) {
@@ -115,13 +116,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         header("Location: /teacher/index.php");
                         exit();
                     }
-                } elseif ($user['role'] === 'admin') {
+                } elseif (in_array($user['role'], ['admin', 'principal', 'vice_principal'])) {
                     $_SESSION['user_id'] = $user['id'];
                     $_SESSION['username'] = $user['username'];
                     $_SESSION['email'] = $user['email'];
                     $_SESSION['role'] = $user['role'];
                     $_SESSION['status'] = 'approved';
-                    $_SESSION['full_name'] = get_setting($pdo, 'admin_name', 'Principal / Head Admin');
+                    
+                    if ($user['role'] === 'admin') {
+                        $_SESSION['full_name'] = get_setting($pdo, 'admin_name', 'System Administrator');
+                    } elseif ($user['role'] === 'principal') {
+                        $_SESSION['full_name'] = get_setting($pdo, 'principal_name', 'Dr. R. K. Sharma (Principal)');
+                    } else {
+                        $_SESSION['full_name'] = get_setting($pdo, 'vice_principal_name', 'Prof. S. M. Deshmukh (Vice Principal)');
+                    }
 
                     header("Location: /admin/index.php");
                     exit();
@@ -145,7 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ERP Login - ABC School Nashik</title>
+    <title>ERP Login - <?= htmlspecialchars($school_name) ?></title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -171,18 +179,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body class="h-full flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-tr from-slate-100 via-blue-50/50 to-slate-200">
 
-    <div class="sm:mx-auto sm:w-full sm:max-w-md">
+    <div class="sm:mx-auto sm:w-full sm:max-w-md px-4">
         <!-- Logo -->
         <a href="/" class="flex flex-col items-center group text-center">
             <?php if (!empty($school_logo) && file_exists(__DIR__ . '/' . ltrim($school_logo, '/'))): ?>
-                <img src="<?= htmlspecialchars($school_logo) ?>" alt="School Logo" class="w-20 h-20 object-contain rounded-3xl shadow-xl shadow-blue-500/10 group-hover:scale-105 transition-transform mb-3 bg-white p-2 border border-slate-200">
+                <img src="<?= htmlspecialchars($school_logo) ?>" alt="School Logo" class="w-16 h-16 sm:w-20 sm:h-20 object-contain rounded-3xl shadow-xl shadow-blue-500/10 group-hover:scale-105 transition-transform mb-3 bg-white p-2 border border-slate-200">
             <?php else: ?>
                 <div class="w-16 h-16 rounded-3xl bg-gradient-to-tr from-navy-950 to-navy-700 flex items-center justify-center text-white shadow-xl shadow-blue-500/20 group-hover:scale-105 transition-transform mb-3">
                     <i class="fa-solid fa-school text-3xl text-amber-400"></i>
                 </div>
             <?php endif; ?>
-            <h2 class="text-2xl font-extrabold text-navy-950 font-['Outfit'] tracking-tight"><?= htmlspecialchars(strtoupper($school_name)) ?></h2>
-            <p class="text-xs font-bold tracking-widest text-amber-600 uppercase mt-0.5">Enterprise Resource Planning (ERP)</p>
+            <h2 class="text-xl sm:text-2xl font-extrabold text-navy-950 font-['Outfit'] tracking-tight break-words max-w-sm sm:max-w-md leading-tight"><?= htmlspecialchars(strtoupper($school_name)) ?></h2>
+            <p class="text-xs font-bold tracking-widest text-amber-600 uppercase mt-1 truncate"><?= htmlspecialchars($school_city) ?> • ERP Portal</p>
         </a>
     </div>
 

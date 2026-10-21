@@ -4,7 +4,7 @@
  * ABC School Nashik ERP System
  */
 require_once __DIR__ . '/../includes/auth.php';
-require_auth('admin');
+require_auth(['admin', 'principal', 'vice_principal']);
 
 $selected_date = $_GET['date'] ?? date('Y-m-d');
 $selected_class = $_GET['class'] ?? 'all';
@@ -21,39 +21,56 @@ $all_classes = [
 // Handle Admin Quick Attendance Update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_attendance') {
     $date = $_POST['date'] ?? date('Y-m-d');
-    $status_data = $_POST['status'] ?? [];
+    $all_students = $_POST['all_students'] ?? [];
+    $present_data = $_POST['present'] ?? [];
     $remarks_data = $_POST['remarks'] ?? [];
     $target_class = $_POST['target_class'] ?? '';
+    $legacy_status = $_POST['status'] ?? [];
 
-    $ins_upd = $pdo->prepare("
-        INSERT INTO attendance (student_id, date, status, remarks, marked_by)
-        VALUES (:sid, :dt, :st, :rem, :uid)
-        ON CONFLICT(student_id, date) DO UPDATE SET
-            status = excluded.status,
-            remarks = excluded.remarks,
-            marked_by = excluded.marked_by
-    ");
-
-    // Fallback if ON CONFLICT requires specific unique index
     $chk_stmt = $pdo->prepare("SELECT id FROM attendance WHERE student_id = ? AND date = ?");
     $upd_stmt = $pdo->prepare("UPDATE attendance SET status = ?, remarks = ?, marked_by = ? WHERE id = ?");
     $ins_stmt = $pdo->prepare("INSERT INTO attendance (student_id, date, status, remarks, marked_by) VALUES (?, ?, ?, ?, ?)");
 
     $count = 0;
-    foreach ($status_data as $student_id => $st) {
-        $rem = trim($remarks_data[$student_id] ?? '');
-        $chk_stmt->execute([$student_id, $date]);
-        $existing = $chk_stmt->fetch();
+    $present_count = 0;
 
-        if ($existing) {
-            $upd_stmt->execute([$st, $rem, $_SESSION['user_id'], $existing['id']]);
-        } else {
-            $ins_stmt->execute([$student_id, $date, $st, $rem, $_SESSION['user_id']]);
+    if (!empty($all_students)) {
+        foreach ($all_students as $student_id) {
+            $student_id = (int)$student_id;
+            $st = isset($present_data[$student_id]) ? 'Present' : 'Absent';
+            if ($st === 'Present') $present_count++;
+            $rem = trim($remarks_data[$student_id] ?? '');
+
+            $chk_stmt->execute([$student_id, $date]);
+            $existing = $chk_stmt->fetch();
+
+            if ($existing) {
+                $upd_stmt->execute([$st, $rem, $_SESSION['user_id'], $existing['id']]);
+            } else {
+                $ins_stmt->execute([$student_id, $date, $st, $rem, $_SESSION['user_id']]);
+            }
+            $count++;
         }
-        $count++;
+    } elseif (!empty($legacy_status)) {
+        foreach ($legacy_status as $student_id => $st) {
+            $student_id = (int)$student_id;
+            if ($st === 'Present') $present_count++;
+            $rem = trim($remarks_data[$student_id] ?? '');
+
+            $chk_stmt->execute([$student_id, $date]);
+            $existing = $chk_stmt->fetch();
+
+            if ($existing) {
+                $upd_stmt->execute([$st, $rem, $_SESSION['user_id'], $existing['id']]);
+            } else {
+                $ins_stmt->execute([$student_id, $date, $st, $rem, $_SESSION['user_id']]);
+            }
+            $count++;
+        }
     }
 
-    set_flash('success', "Attendance records updated successfully for {$count} student(s) on {$date}.");
+    $absent_count = max(0, $count - $present_count);
+    set_flash('success', "Attendance updated successfully for {$count} student(s) on {$date} ({$present_count} Present, {$absent_count} Absent).");
     header("Location: /admin/attendance.php?date=" . urlencode($date) . ($target_class ? "&class=" . urlencode($target_class) : ""));
     exit;
 }
@@ -293,13 +310,28 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
     <!-- Student Attendance Roll Call Table -->
     <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 mb-4 gap-2">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 mb-4 gap-3">
             <div>
                 <h3 class="text-base font-bold text-slate-900 font-['Outfit'] flex items-center">
                     <i class="fa-solid fa-list-check mr-2 text-emerald-600"></i>
                     Student Roll Call Register: <?= htmlspecialchars($selected_class === 'all' ? 'All Classes' : $selected_class) ?>
                 </h3>
-                <p class="text-xs text-slate-500">Date: <?= date('l, d F Y', strtotime($selected_date)) ?> • <?= count($roster) ?> Student(s) listed</p>
+                <p class="text-xs text-slate-500">
+                    Date: <?= date('l, d F Y', strtotime($selected_date)) ?> &bull; 
+                    <span id="adminAttendanceCounter" class="font-semibold text-slate-700"><?= count($roster) ?> Student(s) listed</span>
+                </p>
+            </div>
+
+            <!-- Quick Action: Tick/Untick All -->
+            <div class="flex items-center space-x-2">
+                <button type="button" onclick="setAdminAllPresent(true)" class="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs transition flex items-center space-x-1.5 shadow-2xs">
+                    <i class="fa-solid fa-square-check text-emerald-600"></i>
+                    <span>Tick All Present</span>
+                </button>
+                <button type="button" onclick="setAdminAllPresent(false)" class="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 font-bold text-xs transition flex items-center space-x-1.5 shadow-2xs">
+                    <i class="fa-regular fa-square text-rose-600"></i>
+                    <span>Untick All (Absent)</span>
+                </button>
             </div>
         </div>
 
@@ -323,13 +355,23 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                 <th class="py-3 px-3.5">Student Code</th>
                                 <th class="py-3 px-3.5">Full Name</th>
                                 <th class="py-3 px-3.5">Class</th>
-                                <th class="py-3 px-3.5 text-center">Status</th>
+                                <th class="py-3 px-3.5 text-center">
+                                    <div class="inline-flex items-center space-x-2">
+                                        <input type="checkbox" id="adminMasterToggle" title="Tick / Untick All"
+                                               class="w-4 h-4 rounded text-emerald-600 accent-emerald-600 cursor-pointer"
+                                               onchange="setAdminAllPresent(this.checked)">
+                                        <span>Status (Tick = Present)</span>
+                                    </div>
+                                </th>
                                 <th class="py-3 px-3.5">Remarks / Reason</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
                             <?php foreach ($roster as $r): ?>
-                                <?php $current_status = $r['attendance_status'] ?? 'Present'; ?>
+                                <?php 
+                                    $has_rec = !empty($r['attendance_id']);
+                                    $is_present = $has_rec ? ($r['attendance_status'] === 'Present') : true;
+                                ?>
                                 <tr class="hover:bg-slate-50/80 transition">
                                     <td class="py-2.5 px-3.5 font-bold text-slate-800">
                                         <?= htmlspecialchars($r['roll_no'] ?: '-') ?>
@@ -346,20 +388,20 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                         </span>
                                     </td>
                                     <td class="py-2.5 px-3.5 text-center whitespace-nowrap">
-                                        <div class="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200">
-                                            <label class="flex items-center px-2 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition has-[:checked]:bg-emerald-600 has-[:checked]:text-white text-slate-600">
-                                                <input type="radio" name="status[<?= $r['student_id'] ?>]" value="Present" class="sr-only" <?= $current_status === 'Present' ? 'checked' : '' ?>>
-                                                Present
-                                            </label>
-                                            <label class="flex items-center px-2 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition has-[:checked]:bg-rose-600 has-[:checked]:text-white text-slate-600">
-                                                <input type="radio" name="status[<?= $r['student_id'] ?>]" value="Absent" class="sr-only" <?= $current_status === 'Absent' ? 'checked' : '' ?>>
-                                                Absent
-                                            </label>
-                                            <label class="flex items-center px-2 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition has-[:checked]:bg-amber-600 has-[:checked]:text-white text-slate-600">
-                                                <input type="radio" name="status[<?= $r['student_id'] ?>]" value="Late" class="sr-only" <?= $current_status === 'Late' ? 'checked' : '' ?>>
-                                                Late
-                                            </label>
-                                        </div>
+                                        <input type="hidden" name="all_students[]" value="<?= $r['student_id'] ?>">
+                                        <label class="inline-flex items-center space-x-2.5 cursor-pointer select-none group py-1 px-2 rounded-xl hover:bg-slate-100 transition">
+                                            <input type="checkbox" 
+                                                   name="present[<?= $r['student_id'] ?>]" 
+                                                   value="1" 
+                                                   class="admin-att-checkbox w-5 h-5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 accent-emerald-600 cursor-pointer"
+                                                   <?= $is_present ? 'checked' : '' ?>
+                                                   onchange="updateAdminStatusBadge(this)">
+                                            
+                                            <span class="status-badge px-3 py-1 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 <?= $is_present ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-rose-100 text-rose-800 border border-rose-300' ?>">
+                                                <i class="badge-icon fa-solid <?= $is_present ? 'fa-check text-emerald-700' : 'fa-xmark text-rose-700' ?>"></i>
+                                                <span class="badge-text"><?= $is_present ? 'Present' : 'Absent' ?></span>
+                                            </span>
+                                        </label>
                                     </td>
                                     <td class="py-2.5 px-3.5">
                                         <input type="text" name="remarks[<?= $r['student_id'] ?>]" 
@@ -373,9 +415,14 @@ require_once __DIR__ . '/../includes/sidebar.php';
                     </table>
                 </div>
 
-                <div class="flex justify-end pt-3">
-                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-700/10 transition">
-                        <i class="fa-solid fa-floppy-disk mr-1.5"></i> Save / Override Daily Attendance
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3">
+                    <span class="text-xs text-slate-500">
+                        <i class="fa-solid fa-circle-check text-emerald-600 mr-1"></i>
+                        Checked = <strong>Present</strong>, Unchecked = <strong>Absent</strong>.
+                    </span>
+                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-700/10 transition flex items-center justify-center space-x-1.5">
+                        <i class="fa-solid fa-floppy-disk mr-1.5"></i>
+                        <span>Save / Override Daily Attendance</span>
                     </button>
                 </div>
             </form>
@@ -384,5 +431,45 @@ require_once __DIR__ . '/../includes/sidebar.php';
     </div>
 
 </main>
+
+<script>
+    function updateAdminStatusBadge(checkbox) {
+        const badge = checkbox.closest('label').querySelector('.status-badge');
+        const icon = badge.querySelector('.badge-icon');
+        const text = badge.querySelector('.badge-text');
+        if (checkbox.checked) {
+            badge.className = 'status-badge px-3 py-1 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 bg-emerald-100 text-emerald-800 border border-emerald-300';
+            icon.className = 'badge-icon fa-solid fa-check text-emerald-700';
+            text.textContent = 'Present';
+        } else {
+            badge.className = 'status-badge px-3 py-1 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 bg-rose-100 text-rose-800 border border-rose-300';
+            icon.className = 'badge-icon fa-solid fa-xmark text-rose-700';
+            text.textContent = 'Absent';
+        }
+        updateAdminCounter();
+    }
+
+    function setAdminAllPresent(val) {
+        document.querySelectorAll('.admin-att-checkbox').forEach(cb => {
+            cb.checked = val;
+            updateAdminStatusBadge(cb);
+        });
+        const master = document.getElementById('adminMasterToggle');
+        if (master) master.checked = val;
+        updateAdminCounter();
+    }
+
+    function updateAdminCounter() {
+        const total = document.querySelectorAll('.admin-att-checkbox').length;
+        const present = document.querySelectorAll('.admin-att-checkbox:checked').length;
+        const absent = total - present;
+        const counterEl = document.getElementById('adminAttendanceCounter');
+        if (counterEl) {
+            counterEl.innerHTML = `<span class="text-emerald-700 font-bold">${present} Present</span> &bull; <span class="text-rose-700 font-bold">${absent} Absent</span> (Total: ${total})`;
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', updateAdminCounter);
+</script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

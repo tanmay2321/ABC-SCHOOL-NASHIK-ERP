@@ -5,7 +5,7 @@
  * Full access: Create Teacher ID, Edit Teacher Details, Delete Teacher
  */
 require_once __DIR__ . '/../includes/auth.php';
-require_auth('admin');
+require_auth(['admin', 'principal']);
 
 $error = '';
 $success = '';

@@ -8,6 +8,10 @@ $user = current_user();
 $role = $user['role'] ?? 'student';
 $current_uri = $_SERVER['REQUEST_URI'];
 
+$school_name = isset($pdo) ? get_setting($pdo, 'school_name', 'ABC School') : 'ABC School';
+$school_city = isset($pdo) ? get_setting($pdo, 'school_city', 'Nashik') : 'Nashik';
+$school_affiliation = isset($pdo) ? get_setting($pdo, 'school_affiliation', 'CBSE #113042') : 'CBSE';
+
 // Define navigation items per role
 $nav_items = [];
 
@@ -18,6 +22,12 @@ if ($role === 'admin') {
             'url' => '/admin/index.php',
             'icon' => 'fa-solid fa-chart-pie',
             'active' => strpos($current_uri, '/admin/index.php') !== false || $current_uri === '/admin/'
+        ],
+        [
+            'title' => 'Leadership Profiles',
+            'url' => '/admin/leadership.php',
+            'icon' => 'fa-solid fa-user-shield',
+            'active' => strpos($current_uri, '/admin/leadership.php') !== false
         ],
         [
             'title' => 'Teachers Management',
@@ -79,6 +89,109 @@ if ($role === 'admin') {
             'url' => '/admin/settings.php',
             'icon' => 'fa-solid fa-sliders',
             'active' => strpos($current_uri, '/admin/settings.php') !== false
+        ]
+    ];
+} elseif ($role === 'principal') {
+    $nav_items = [
+        [
+            'title' => 'Principal Overview',
+            'url' => '/admin/index.php',
+            'icon' => 'fa-solid fa-award',
+            'active' => strpos($current_uri, '/admin/index.php') !== false || $current_uri === '/admin/'
+        ],
+        [
+            'title' => 'Student Approvals & Roster',
+            'url' => '/admin/students.php',
+            'icon' => 'fa-solid fa-users-gear',
+            'badge' => $pending_count > 0 ? $pending_count : null,
+            'active' => strpos($current_uri, '/admin/students.php') !== false
+        ],
+        [
+            'title' => 'Attendance Oversight',
+            'url' => '/admin/attendance.php',
+            'icon' => 'fa-solid fa-clipboard-user',
+            'active' => strpos($current_uri, '/admin/attendance.php') !== false
+        ],
+        [
+            'title' => 'Homework & Assignments',
+            'url' => '/admin/assignments.php',
+            'icon' => 'fa-solid fa-book-bookmark',
+            'active' => strpos($current_uri, '/admin/assignments.php') !== false
+        ],
+        [
+            'title' => 'Class Timetables',
+            'url' => '/admin/timetable.php',
+            'icon' => 'fa-solid fa-calendar-days',
+            'active' => strpos($current_uri, '/admin/timetable.php') !== false
+        ],
+        [
+            'title' => 'Faculty Directory',
+            'url' => '/admin/teachers.php',
+            'icon' => 'fa-solid fa-chalkboard-user',
+            'active' => strpos($current_uri, '/admin/teachers.php') !== false
+        ],
+        [
+            'title' => 'Leave Approvals',
+            'url' => '/admin/leaves.php',
+            'icon' => 'fa-solid fa-envelope-open-text',
+            'active' => strpos($current_uri, '/admin/leaves.php') !== false
+        ],
+        [
+            'title' => 'Fee Collections Review',
+            'url' => '/admin/fees.php',
+            'icon' => 'fa-solid fa-receipt',
+            'active' => strpos($current_uri, '/admin/fees.php') !== false
+        ],
+        [
+            'title' => 'Notice Board',
+            'url' => '/admin/notices.php',
+            'icon' => 'fa-solid fa-bullhorn',
+            'active' => strpos($current_uri, '/admin/notices.php') !== false
+        ]
+    ];
+} elseif ($role === 'vice_principal') {
+    $nav_items = [
+        [
+            'title' => 'VP Overview',
+            'url' => '/admin/index.php',
+            'icon' => 'fa-solid fa-user-tie',
+            'active' => strpos($current_uri, '/admin/index.php') !== false || $current_uri === '/admin/'
+        ],
+        [
+            'title' => 'Student Directory',
+            'url' => '/admin/students.php',
+            'icon' => 'fa-solid fa-user-graduate',
+            'active' => strpos($current_uri, '/admin/students.php') !== false
+        ],
+        [
+            'title' => 'Attendance Register',
+            'url' => '/admin/attendance.php',
+            'icon' => 'fa-solid fa-clipboard-user',
+            'active' => strpos($current_uri, '/admin/attendance.php') !== false
+        ],
+        [
+            'title' => 'Homework & Assignments',
+            'url' => '/admin/assignments.php',
+            'icon' => 'fa-solid fa-book-bookmark',
+            'active' => strpos($current_uri, '/admin/assignments.php') !== false
+        ],
+        [
+            'title' => 'Class Timetables',
+            'url' => '/admin/timetable.php',
+            'icon' => 'fa-solid fa-calendar-days',
+            'active' => strpos($current_uri, '/admin/timetable.php') !== false
+        ],
+        [
+            'title' => 'Leave Review',
+            'url' => '/admin/leaves.php',
+            'icon' => 'fa-solid fa-envelope-open-text',
+            'active' => strpos($current_uri, '/admin/leaves.php') !== false
+        ],
+        [
+            'title' => 'Notice Board',
+            'url' => '/admin/notices.php',
+            'icon' => 'fa-solid fa-bullhorn',
+            'active' => strpos($current_uri, '/admin/notices.php') !== false
         ]
     ];
 } elseif ($role === 'teacher') {
@@ -190,13 +303,13 @@ if ($role === 'admin') {
 <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 transform -translate-x-full lg:translate-x-0 lg:static lg:inset-auto transition-transform duration-200 ease-in-out flex flex-col justify-between shrink-0 shadow-xl border-r border-slate-800">
     <div class="p-4 flex-1 flex flex-col overflow-y-auto">
         <!-- School Tagline / Branch -->
-        <div class="px-3 py-3 mb-4 rounded-xl bg-slate-800/60 border border-slate-700/50 flex items-center space-x-3">
-            <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold text-sm">
+        <div class="px-3 py-3 mb-4 rounded-xl bg-slate-800/60 border border-slate-700/50 flex items-center space-x-3 min-w-0">
+            <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold text-sm shrink-0">
                 <i class="fa-solid fa-building-columns"></i>
             </div>
-            <div>
-                <p class="text-xs font-semibold text-white">Nashik Main Campus</p>
-                <p class="text-[11px] text-slate-400">CBSE Affiliation #113042</p>
+            <div class="min-w-0 flex-1">
+                <p class="text-xs font-bold text-white truncate" title="<?= htmlspecialchars($school_name) ?>"><?= htmlspecialchars($school_name) ?></p>
+                <p class="text-[10px] text-amber-400 font-semibold truncate"><?= htmlspecialchars($school_city) ?> • <?= htmlspecialchars($school_affiliation) ?></p>
             </div>
         </div>
 
@@ -227,7 +340,7 @@ if ($role === 'admin') {
                     <i class="fa-solid fa-shield-cat"></i>
                     <span>Role: <?= ucfirst($role) ?></span>
                 </div>
-                <p class="text-[11px] text-slate-400">Secure session established with ABC School Nashik secure gateway.</p>
+                <p class="text-[11px] text-slate-400">Secure session established with <?= htmlspecialchars($school_name) ?> secure gateway.</p>
             </div>
         </div>
     </div>

@@ -5,7 +5,7 @@
  * Full access: Approve/Reject registrations, Edit Student details, Delete
  */
 require_once __DIR__ . '/../includes/auth.php';
-require_auth('admin');
+require_auth(['admin', 'principal', 'vice_principal']);
 
 $error = '';
 $active_tab = $_GET['tab'] ?? ($_GET['status'] ?? 'all');

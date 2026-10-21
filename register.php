@@ -11,6 +11,7 @@ $new_student_data = [];
 
 $school_logo = get_setting($pdo, 'school_logo', '');
 $school_name = get_setting($pdo, 'school_name', 'ABC School Nashik');
+$school_city = get_setting($pdo, 'school_city', 'Nashik');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
@@ -99,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>New Student Registration - ABC School Nashik</title>
+    <title>New Student Registration - <?= htmlspecialchars($school_name) ?></title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -135,8 +136,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <i class="fa-solid fa-graduation-cap text-2xl text-amber-400"></i>
                 </div>
             <?php endif; ?>
-            <h1 class="text-2xl font-black text-navy-950 font-['Outfit']"><?= htmlspecialchars(strtoupper($school_name)) ?></h1>
-            <p class="text-xs font-bold text-amber-600 tracking-wider uppercase">Online Student Admission &amp; ID Portal</p>
+            <h1 class="text-xl sm:text-2xl font-black text-navy-950 font-['Outfit'] break-words max-w-lg leading-tight"><?= htmlspecialchars(strtoupper($school_name)) ?></h1>
+            <p class="text-xs font-bold text-amber-600 tracking-wider uppercase mt-1 truncate"><?= htmlspecialchars($school_city) ?> • Online Student Admission &amp; ID Portal</p>
         </a>
 
         <?php if ($success): ?>
@@ -157,7 +158,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         Your student account has been created with status <span class="px-2 py-0.5 rounded bg-amber-200 font-bold text-amber-900">PENDING APPROVAL</span>.
                     </p>
                     <p>
-                        In accordance with ABC School Nashik policy, you <strong>will NOT be able to log in</strong> to the student dashboard until the School Administrator reviews your registration and grants approval.
+                        In accordance with <?= htmlspecialchars($school_name) ?> policy, you <strong>will NOT be able to log in</strong> to the student dashboard until the School Administrator reviews your registration and grants approval.
                     </p>
                 </div>
 

@@ -151,7 +151,7 @@ function require_auth($allowed_roles = []) {
         $role = $_SESSION['role'];
         if (!in_array($role, $allowed_roles)) {
             // Redirect to their own dashboard
-            if ($role === 'admin') {
+            if (in_array($role, ['admin', 'principal', 'vice_principal'])) {
                 header("Location: /admin/index.php");
             } elseif ($role === 'teacher') {
                 header("Location: /teacher/index.php");
