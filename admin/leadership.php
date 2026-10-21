@@ -2,7 +2,7 @@
 /**
  * Admin: Institutional Leadership Roles Management
  * Manage separate accounts & permissions for Principal and Vice Principal
- * ABC School ERP System
+ * Bellwether International School Nandurbar ERP System
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_auth('admin');

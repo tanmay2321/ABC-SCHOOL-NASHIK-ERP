@@ -1,6 +1,6 @@
 <?php
 /**
- * Student Dashboard - ABC School Nashik ERP
+ * Student Dashboard - Bellwether International School Nandurbar ERP
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_auth('student');
@@ -160,7 +160,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </div>
             <p class="text-2xl font-extrabold text-slate-900 font-['Outfit'] mt-3">Mid-Term 2026</p>
             <div class="mt-2 text-xs text-slate-500">
-                <span>CBSE Syllabus &bull; Nashik Board</span>
+                <span>CBSE Syllabus &bull; Nandurbar Campus</span>
             </div>
         </div>
 

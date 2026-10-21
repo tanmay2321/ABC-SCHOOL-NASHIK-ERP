@@ -1,7 +1,7 @@
 <?php
 /**
  * Student: Fee Portal & Digital Receipts
- * ABC School Nashik ERP
+ * Bellwether International School Nandurbar ERP
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_auth('student');
@@ -16,7 +16,7 @@ $flash = get_flash();
 $receipt_to_view = null;
 
 $school_logo = get_setting($pdo, 'school_logo', '');
-$school_name = get_setting($pdo, 'school_name', 'ABC Senior Secondary School Nashik');
+$school_name = get_setting($pdo, 'school_name', 'BELLWETHER INTERNATIONAL SCHOOL NANDURBAR');
 
 // Handle Online Fee Payment Simulation
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'student_pay_online') {

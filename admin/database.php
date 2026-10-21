@@ -1,7 +1,7 @@
 <?php
 /**
  * Admin: Database Explorer & Schema Inspector
- * ABC School Nashik ERP System
+ * Bellwether International School Nandurbar ERP System
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_auth('admin');

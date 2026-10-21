@@ -1,15 +1,15 @@
 <?php
 /**
  * Role-Based Navigation Sidebar
- * ABC School Nashik ERP System
+ * Bellwether International School Nandurbar ERP System
  */
 
 $user = current_user();
 $role = $user['role'] ?? 'student';
 $current_uri = $_SERVER['REQUEST_URI'];
 
-$school_name = isset($pdo) ? get_setting($pdo, 'school_name', 'ABC School') : 'ABC School';
-$school_city = isset($pdo) ? get_setting($pdo, 'school_city', 'Nashik') : 'Nashik';
+$school_name = isset($pdo) ? get_setting($pdo, 'school_name', 'BELLWETHER INTERNATIONAL SCHOOL NANDURBAR') : 'BELLWETHER INTERNATIONAL SCHOOL NANDURBAR';
+$school_city = isset($pdo) ? get_setting($pdo, 'school_city', 'Nandurbar') : 'Nandurbar';
 $school_affiliation = isset($pdo) ? get_setting($pdo, 'school_affiliation', 'CBSE #113042') : 'CBSE';
 
 // Define navigation items per role
@@ -59,6 +59,24 @@ if ($role === 'admin') {
             'url' => '/admin/notices.php',
             'icon' => 'fa-solid fa-bullhorn',
             'active' => strpos($current_uri, '/admin/notices.php') !== false
+        ],
+        [
+            'title' => 'Curriculum & Subjects',
+            'url' => '/admin/subjects.php',
+            'icon' => 'fa-solid fa-book-open',
+            'active' => strpos($current_uri, '/admin/subjects.php') !== false
+        ],
+        [
+            'title' => 'Marks & Marksheets',
+            'url' => '/teacher/marks.php',
+            'icon' => 'fa-solid fa-file-pen',
+            'active' => strpos($current_uri, '/teacher/marks.php') !== false
+        ],
+        [
+            'title' => 'Academic Year & Promotion',
+            'url' => '/admin/academic_year.php',
+            'icon' => 'fa-solid fa-calendar-check',
+            'active' => strpos($current_uri, '/admin/academic_year.php') !== false
         ],
         [
             'title' => 'Class Timetables',
@@ -119,6 +137,24 @@ if ($role === 'admin') {
             'active' => strpos($current_uri, '/admin/assignments.php') !== false
         ],
         [
+            'title' => 'Curriculum & Subjects',
+            'url' => '/admin/subjects.php',
+            'icon' => 'fa-solid fa-book-open',
+            'active' => strpos($current_uri, '/admin/subjects.php') !== false
+        ],
+        [
+            'title' => 'Marks & Marksheets',
+            'url' => '/teacher/marks.php',
+            'icon' => 'fa-solid fa-file-pen',
+            'active' => strpos($current_uri, '/teacher/marks.php') !== false
+        ],
+        [
+            'title' => 'Academic Year & Promotion',
+            'url' => '/admin/academic_year.php',
+            'icon' => 'fa-solid fa-calendar-check',
+            'active' => strpos($current_uri, '/admin/academic_year.php') !== false
+        ],
+        [
             'title' => 'Class Timetables',
             'url' => '/admin/timetable.php',
             'icon' => 'fa-solid fa-calendar-days',
@@ -174,6 +210,18 @@ if ($role === 'admin') {
             'url' => '/admin/assignments.php',
             'icon' => 'fa-solid fa-book-bookmark',
             'active' => strpos($current_uri, '/admin/assignments.php') !== false
+        ],
+        [
+            'title' => 'Curriculum & Subjects',
+            'url' => '/admin/subjects.php',
+            'icon' => 'fa-solid fa-book-open',
+            'active' => strpos($current_uri, '/admin/subjects.php') !== false
+        ],
+        [
+            'title' => 'Marks & Marksheets',
+            'url' => '/teacher/marks.php',
+            'icon' => 'fa-solid fa-file-pen',
+            'active' => strpos($current_uri, '/teacher/marks.php') !== false
         ],
         [
             'title' => 'Class Timetables',
@@ -300,7 +348,7 @@ if ($role === 'admin') {
 ?>
 
 <!-- Sidebar Component -->
-<aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 transform -translate-x-full lg:translate-x-0 lg:static lg:inset-auto transition-transform duration-200 ease-in-out flex flex-col justify-between shrink-0 shadow-xl border-r border-slate-800">
+<aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 transform -translate-x-full lg:translate-x-0 lg:static lg:inset-auto transition-transform duration-200 ease-in-out flex flex-col justify-between shrink-0 shadow-xl border-r border-slate-800 no-print">
     <div class="p-4 flex-1 flex flex-col overflow-y-auto">
         <!-- School Tagline / Branch -->
         <div class="px-3 py-3 mb-4 rounded-xl bg-slate-800/60 border border-slate-700/50 flex items-center space-x-3 min-w-0">

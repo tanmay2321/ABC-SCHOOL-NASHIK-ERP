@@ -1,7 +1,7 @@
 <?php
 /**
  * Student Leave Application Portal
- * ABC School Nashik ERP System
+ * Bellwether International School Nandurbar ERP System
  */
 
 require_once __DIR__ . '/../config/db.php';

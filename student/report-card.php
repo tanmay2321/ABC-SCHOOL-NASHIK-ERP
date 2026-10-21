@@ -1,7 +1,7 @@
 <?php
 /**
  * Student: Official Digital Report Card
- * ABC School Nashik ERP
+ * Bellwether International School Nandurbar ERP
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_auth('student');
@@ -11,6 +11,15 @@ $sStmt = $pdo->prepare("SELECT * FROM students WHERE user_id = :uid LIMIT 1");
 $sStmt->execute(['uid' => $student_user_id]);
 $student = $sStmt->fetch();
 $student_id = $student['id'] ?? 0;
+
+$school_name = get_setting($pdo, 'school_name', 'BELLWETHER INTERNATIONAL SCHOOL NANDURBAR');
+$school_city = get_setting($pdo, 'school_city', 'Nandurbar');
+$school_phone = get_setting($pdo, 'school_phone', '+91 6262848446');
+$school_email = get_setting($pdo, 'school_email', 'bwis.nandurbar@gmail.com');
+$school_address = get_setting($pdo, 'school_address', 'Old Nalwa Road, Nandurbar - 425412');
+$school_affiliation = get_setting($pdo, 'school_affiliation', 'CBSE Affiliation #113042');
+$school_logo = get_setting($pdo, 'school_logo', '');
+$academic_year = get_setting($pdo, 'current_academic_year', '2026-2027');
 
 // Fetch Grades
 $gStmt = $pdo->prepare("
@@ -76,21 +85,25 @@ require_once __DIR__ . '/../includes/sidebar.php';
         
         <!-- School Crest & Header -->
         <div class="text-center pb-6 border-b-2 border-navy-900 mb-6">
-            <div class="w-16 h-16 rounded-3xl bg-navy-950 flex items-center justify-center text-white shadow-lg mx-auto mb-3">
-                <i class="fa-solid fa-graduation-cap text-3xl text-amber-400"></i>
-            </div>
-            <h2 class="text-2xl sm:text-3xl font-black text-navy-950 font-['Outfit'] tracking-tight uppercase">
-                ABC Senior Secondary School Nashik
+            <?php if (!empty($school_logo) && file_exists(__DIR__ . '/../' . ltrim($school_logo, '/'))): ?>
+                <img src="<?= htmlspecialchars($school_logo) ?>" alt="School Crest" class="w-20 h-20 object-contain mx-auto mb-3 bg-white p-1 rounded-2xl border border-slate-200">
+            <?php else: ?>
+                <div class="w-16 h-16 rounded-3xl bg-navy-950 flex items-center justify-center text-white shadow-lg mx-auto mb-3">
+                    <i class="fa-solid fa-graduation-cap text-3xl text-amber-400"></i>
+                </div>
+            <?php endif; ?>
+            <h2 class="text-xl sm:text-2xl lg:text-3xl font-black text-navy-950 font-['Outfit'] tracking-tight uppercase break-words">
+                <?= htmlspecialchars($school_name) ?>
             </h2>
             <p class="text-xs font-bold text-amber-600 tracking-wider uppercase mt-0.5">
-                CBSE Board Affiliated &bull; Affiliation No: 113042 &bull; School Code: 30129
+                <?= htmlspecialchars($school_affiliation) ?> &bull; Campus: <?= htmlspecialchars($school_city) ?>
             </p>
             <p class="text-xs text-slate-500 mt-1">
-                Off Gangapur Road, Nashik, Maharashtra - 422013 | Phone: +91 (0253) 234-5678
+                <?= htmlspecialchars($school_address) ?> &bull; Phone: <?= htmlspecialchars($school_phone) ?> &bull; Email: <?= htmlspecialchars($school_email) ?>
             </p>
             
             <div class="mt-4 inline-block px-4 py-1.5 rounded-full bg-navy-900 text-white text-xs font-bold uppercase tracking-widest font-['Outfit']">
-                Official Statement of Marks &bull; Academic Year 2026-2027
+                Official Statement of Marks &bull; Academic Year <?= htmlspecialchars($academic_year) ?>
             </div>
         </div>
 

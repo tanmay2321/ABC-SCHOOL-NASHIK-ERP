@@ -1,7 +1,7 @@
 <?php
 /**
  * Admin: Fee Accounting & Invoice Management
- * ABC School Nashik ERP
+ * Bellwether International School Nandurbar ERP
  * Full administrative control over school fee structures, collections, invoices, and receipts
  */
 require_once __DIR__ . '/../includes/auth.php';
@@ -136,9 +136,9 @@ $recent_payments = $pdo->query("
 
 // Excel Spreadsheet Export Handler
 if (isset($_GET['export']) && $_GET['export'] === 'excel') {
-    $school_name = get_setting($pdo, 'school_name', 'ABC Senior Secondary School Nashik');
+    $school_name = get_setting($pdo, 'school_name', 'BELLWETHER INTERNATIONAL SCHOOL NANDURBAR');
     $school_affiliation = get_setting($pdo, 'school_affiliation', 'CBSE Board Affiliation #113042');
-    $filename = "ABC_School_Fee_Register_" . date('Y-m-d') . ".xls";
+    $filename = "Bellwether_Fee_Register_" . date('Y-m-d') . ".xls";
 
     header("Content-Type: application/vnd.ms-excel; charset=utf-8");
     header("Content-Disposition: attachment; filename=\"$filename\"");

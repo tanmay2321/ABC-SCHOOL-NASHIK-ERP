@@ -1,7 +1,7 @@
 <?php
 /**
  * Student Class Timetable & Schedule
- * ABC School Nashik ERP System
+ * Bellwether International School Nandurbar ERP System
  */
 
 require_once __DIR__ . '/../config/db.php';
@@ -17,6 +17,8 @@ $student = $stmt->fetch();
 if (!$student) {
     die("Student profile not found.");
 }
+
+$school_name = get_setting($pdo, 'school_name', 'BELLWETHER INTERNATIONAL SCHOOL NANDURBAR');
 
 $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 $today_day = date('l');
@@ -83,7 +85,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
     <!-- Today's Alert Banner -->
     <?php if (isset($timetable_grid[$today_day]) && !empty($timetable_grid[$today_day])): ?>
-        <div class="p-4 rounded-2xl bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="p-4 rounded-2xl bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 no-print">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-lg">
                     <i class="fa-solid fa-bell"></i>
@@ -98,6 +100,13 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
     <?php endif; ?>
+
+    <!-- Clean Printable Sheet Letterhead (Visible only on Print) -->
+    <div class="hidden print:block p-4 border-b-2 border-slate-900 text-center mb-4">
+        <h2 class="text-base font-black uppercase text-slate-900 font-['Outfit']"><?= htmlspecialchars($school_name) ?></h2>
+        <p class="text-xs font-bold text-indigo-700 uppercase">Weekly Academic Timetable</p>
+        <p class="text-xs text-slate-600 mt-1">Student: <strong><?= htmlspecialchars($student['full_name'] ?? '') ?></strong> &bull; Class: <strong><?= htmlspecialchars($student['class'] ?? '') ?></strong> &bull; Printed: <strong><?= date('d M Y') ?></strong></p>
+    </div>
 
     <!-- Daily Breakdown -->
     <div class="space-y-4">

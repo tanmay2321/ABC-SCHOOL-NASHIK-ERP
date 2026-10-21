@@ -1,4 +1,4 @@
-/* Custom CSS styling for ABC School Nashik ERP */
+/* Custom CSS styling for Bellwether International School Nandurbar ERP */
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap');
 
 :root {
@@ -93,18 +93,116 @@ h1, h2, h3, h4, h5, h6, .brand-font {
   }
 }
 
-/* Print Styling for Report Cards */
+/* ==========================================================================
+   Comprehensive Universal Print Styling
+   Hides all navigation, sidebars, headers, footers & action buttons
+   Only renders the clean printable document / layout
+   ========================================================================== */
 @media print {
-  .no-print {
+  /* 1. Hide all navigation, sidebars, headers, footers, buttons, and system controls */
+  header,
+  nav,
+  aside,
+  footer,
+  #mobile-sidebar-toggle,
+  .no-print,
+  button,
+  a[href^="javascript:"],
+  .modal-backdrop button,
+  .auto-dismiss-alert,
+  .flash-message,
+  [role="alert"],
+  .action-bar,
+  .search-bar,
+  input[type="button"],
+  input[type="submit"],
+  input[type="search"] {
     display: none !important;
+    visibility: hidden !important;
   }
-  body {
-    background: white !important;
-    color: black !important;
-  }
-  .print-page {
-    box-shadow: none !important;
-    border: none !important;
+
+  /* 2. Reset html, body, and layout wrappers to normal document flow */
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    margin: 0 !important;
     padding: 0 !important;
+  }
+
+  /* Remove flex height constraints that cut off printed content */
+  .h-full,
+  .h-screen,
+  .min-h-screen,
+  .flex-1,
+  .overflow-y-auto,
+  .overflow-x-auto,
+  .overflow-hidden,
+  main {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+  }
+
+  /* 3. Printable Document / Report Card / Receipt Container */
+  .print-page,
+  .printable-area {
+    display: block !important;
+    visibility: visible !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 15px 20px !important;
+    box-shadow: none !important;
+    border: 1px solid #94a3b8 !important;
+    border-radius: 8px !important;
+    background: #ffffff !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Preserve tables with clean borders */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  th, td {
+    border-color: #cbd5e1 !important;
+  }
+
+  /* Ensure text colors are print-friendly (avoiding pale light grays) */
+  .text-slate-400,
+  .text-slate-500 {
+    color: #475569 !important;
+  }
+
+  /* Preserve essential backgrounds (like badges or table headers) */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  @page {
+    margin: 1.2cm;
+    size: auto;
   }
 }

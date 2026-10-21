@@ -1,5 +1,5 @@
 /**
- * ABC School Nashik ERP - Frontend Application JavaScript
+ * Bellwether International School Nandurbar ERP - Frontend Application JavaScript
  */
 
 document.addEventListener('DOMContentLoaded', () => {

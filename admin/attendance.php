@@ -1,7 +1,7 @@
 <?php
 /**
  * Admin: School-Wide Attendance & Morning Roll Call Oversight
- * ABC School Nashik ERP System
+ * Bellwether International School Nandurbar ERP System
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_auth(['admin', 'principal', 'vice_principal']);
@@ -9,6 +9,7 @@ require_auth(['admin', 'principal', 'vice_principal']);
 $selected_date = $_GET['date'] ?? date('Y-m-d');
 $selected_class = $_GET['class'] ?? 'all';
 $flash = get_flash();
+$school_name = get_setting($pdo, 'school_name', 'BELLWETHER INTERNATIONAL SCHOOL NANDURBAR');
 
 // Available classes
 $all_classes = [
@@ -179,7 +180,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
         </div>
 
         <!-- Date & Class Selector Form -->
-        <form method="GET" action="attendance.php" class="flex flex-wrap items-center gap-2.5">
+        <form method="GET" action="attendance.php" class="flex flex-wrap items-center gap-2.5 no-print">
             <div>
                 <input type="date" name="date" value="<?= htmlspecialchars($selected_date) ?>" 
                        onchange="this.form.submit()"
@@ -204,7 +205,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
     <!-- Flash message -->
     <?php if ($flash): ?>
-        <div class="mb-6 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-semibold flex items-center justify-between auto-dismiss-alert">
+        <div class="mb-6 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-semibold flex items-center justify-between auto-dismiss-alert no-print">
             <div class="flex items-center space-x-2.5">
                 <i class="fa-solid fa-circle-check text-emerald-600 text-base"></i>
                 <span><?= $flash['message'] ?></span>
@@ -214,7 +215,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
     <?php endif; ?>
 
     <!-- Summary KPI Cards -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8 no-print">
         
         <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
             <div class="flex items-center justify-between">
@@ -263,7 +264,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
     </div>
 
     <!-- Morning Roll Call Matrix By Standard -->
-    <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm mb-8">
+    <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm mb-8 <?= ($selected_class !== 'all') ? 'no-print' : '' ?>">
         <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
             <div>
                 <h3 class="text-base font-bold text-slate-900 font-['Outfit'] flex items-center">
@@ -323,7 +324,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </div>
 
             <!-- Quick Action: Tick/Untick All -->
-            <div class="flex items-center space-x-2">
+            <div class="flex items-center space-x-2 no-print">
                 <button type="button" onclick="setAdminAllPresent(true)" class="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs transition flex items-center space-x-1.5 shadow-2xs">
                     <i class="fa-solid fa-square-check text-emerald-600"></i>
                     <span>Tick All Present</span>
@@ -346,6 +347,13 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 <input type="hidden" name="action" value="save_attendance">
                 <input type="hidden" name="date" value="<?= htmlspecialchars($selected_date) ?>">
                 <input type="hidden" name="target_class" value="<?= htmlspecialchars($selected_class) ?>">
+
+                <!-- Clean Printable Sheet Letterhead (Visible only on Print) -->
+                <div class="hidden print:block pb-4 mb-4 border-b-2 border-slate-900 text-center">
+                    <h2 class="text-base font-black uppercase text-slate-900 font-['Outfit']"><?= htmlspecialchars($school_name) ?></h2>
+                    <p class="text-xs font-bold text-amber-700 uppercase">Official Morning Roll Call &amp; Attendance Record</p>
+                    <p class="text-xs text-slate-600 mt-1">Class / Section: <strong><?= htmlspecialchars($selected_class === 'all' ? 'All Classes' : $selected_class) ?></strong> &bull; Date: <strong><?= date('l, d F Y', strtotime($selected_date)) ?></strong></p>
+                </div>
 
                 <div class="overflow-x-auto rounded-2xl border border-slate-200">
                     <table class="w-full text-left text-xs">
@@ -415,7 +423,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                     </table>
                 </div>
 
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 no-print">
                     <span class="text-xs text-slate-500">
                         <i class="fa-solid fa-circle-check text-emerald-600 mr-1"></i>
                         Checked = <strong>Present</strong>, Unchecked = <strong>Absent</strong>.

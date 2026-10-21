@@ -1,6 +1,6 @@
 <?php
 /**
- * ERP Login Portal - ABC School Nashik
+ * ERP Login Portal - Bellwether International School Nandurbar
  */
 require_once __DIR__ . '/includes/auth.php';
 
@@ -18,8 +18,8 @@ $warning_message = '';
 $flash = get_flash();
 
 $school_logo = get_setting($pdo, 'school_logo', '');
-$school_name = get_setting($pdo, 'school_name', 'ABC School Nashik');
-$school_city = get_setting($pdo, 'school_city', 'Nashik');
+$school_name = get_setting($pdo, 'school_name', 'BELLWETHER INTERNATIONAL SCHOOL NANDURBAR');
+$school_city = get_setting($pdo, 'school_city', 'Nandurbar');
 
 // Status flags from redirect
 if (isset($_GET['logged_out'])) {
@@ -71,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Verify status if role is student
                 if ($user['role'] === 'student') {
                     if ($user['status'] === 'pending') {
-                        $warning_message = "<strong>Account Pending Approval:</strong> Your registration has been received, but you <strong>cannot log in</strong> until the School Admin reviews and approves your account.<br><br><span class='text-xs opacity-90'>Please contact ABC School administration or wait for approval.</span>";
+                        $warning_message = "<strong>Account Pending Approval:</strong> Your registration has been received, but you <strong>cannot log in</strong> until the School Admin reviews and approves your account.<br><br><span class='text-xs opacity-90'>Please contact school administration or wait for approval.</span>";
                     } elseif ($user['status'] === 'rejected') {
                         $error_message = "Your student registration was reviewed and <strong>rejected</strong> by the administration. Please visit the school office.";
                     } elseif ($user['status'] === 'inactive') {

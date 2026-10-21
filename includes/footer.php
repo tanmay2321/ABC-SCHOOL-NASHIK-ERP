@@ -1,9 +1,9 @@
 <?php
 /**
- * Shared Footer for ABC School ERP
+ * Shared Footer for Bellwether International School Nandurbar ERP
  */
-$footer_school_name = isset($pdo) ? get_setting($pdo, 'school_name', 'ABC Senior Secondary School') : 'ABC Senior Secondary School';
-$footer_school_city = isset($pdo) ? get_setting($pdo, 'school_city', 'Nashik') : 'Nashik';
+$footer_school_name = isset($pdo) ? get_setting($pdo, 'school_name', 'BELLWETHER INTERNATIONAL SCHOOL NANDURBAR') : 'BELLWETHER INTERNATIONAL SCHOOL NANDURBAR';
+$footer_school_city = isset($pdo) ? get_setting($pdo, 'school_city', 'Nandurbar') : 'Nandurbar';
 ?>
     </div> <!-- Close flex-1 flex overflow-hidden from header -->
 

@@ -1,7 +1,7 @@
 <?php
 /**
  * Student Registration Portal
- * ABC School Nashik ERP System
+ * Bellwether International School Nandurbar ERP System
  */
 require_once __DIR__ . '/includes/auth.php';
 
@@ -10,8 +10,8 @@ $error = '';
 $new_student_data = [];
 
 $school_logo = get_setting($pdo, 'school_logo', '');
-$school_name = get_setting($pdo, 'school_name', 'ABC School Nashik');
-$school_city = get_setting($pdo, 'school_city', 'Nashik');
+$school_name = get_setting($pdo, 'school_name', 'BELLWETHER INTERNATIONAL SCHOOL NANDURBAR');
+$school_city = get_setting($pdo, 'school_city', 'Nandurbar');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
@@ -317,8 +317,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <!-- Address -->
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Residential Address (Nashik)</label>
-                        <textarea name="address" rows="2" placeholder="e.g. Plot No. 12, Suyojit Garden, Gangapur Road, Nashik"
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Residential Address (Nandurbar)</label>
+                        <textarea name="address" rows="2" placeholder="e.g. Plot No. 12, Old Nalwa Road, Nandurbar - 425412"
                                   class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-sm focus:outline-none"><?= htmlspecialchars($_POST['address'] ?? '') ?></textarea>
                     </div>
 

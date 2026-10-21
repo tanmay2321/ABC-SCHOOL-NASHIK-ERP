@@ -1,7 +1,7 @@
 <?php
 /**
  * Student: Attendance History & Compliance
- * ABC School Nashik ERP
+ * Bellwether International School Nandurbar ERP
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_auth('student');
@@ -63,7 +63,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 My Attendance Record &amp; Compliance
             </h1>
             <p class="text-xs sm:text-sm text-slate-500 mt-0.5">
-                Official physical lecture attendance record maintained by ABC School Nashik faculty.
+                Official physical lecture attendance record maintained by school faculty.
             </p>
         </div>
 

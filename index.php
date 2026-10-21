@@ -1,6 +1,6 @@
 <?php
 /**
- * ABC School Nashik - Public Website & ERP Gateway
+ * Bellwether International School Nandurbar - Public Website & ERP Gateway
  */
 require_once __DIR__ . '/includes/auth.php';
 
@@ -8,11 +8,11 @@ $notices = $pdo->query("SELECT * FROM notices WHERE audience IN ('all', 'student
 $stats = get_school_stats($pdo);
 
 $school_logo = get_setting($pdo, 'school_logo', '');
-$school_name = get_setting($pdo, 'school_name', 'ABC School Nashik');
-$school_city = get_setting($pdo, 'school_city', 'Nashik');
-$school_phone = get_setting($pdo, 'school_phone', '+91 (0253) 234-5678');
-$school_email = get_setting($pdo, 'school_email', 'contact@abcschoolnashik.edu');
-$school_address = get_setting($pdo, 'school_address', 'Gangapur Road, Nashik, Maharashtra 422013');
+$school_name = get_setting($pdo, 'school_name', 'BELLWETHER INTERNATIONAL SCHOOL NANDURBAR');
+$school_city = get_setting($pdo, 'school_city', 'Nandurbar');
+$school_phone = get_setting($pdo, 'school_phone', '+91 6262848446');
+$school_email = get_setting($pdo, 'school_email', 'bwis.nandurbar@gmail.com');
+$school_address = get_setting($pdo, 'school_address', 'Old Nalwa Road, Nandurbar - 425412');
 $school_affiliation = get_setting($pdo, 'school_affiliation', 'CBSE Affiliation No: 113042');
 ?>
 <!DOCTYPE html>

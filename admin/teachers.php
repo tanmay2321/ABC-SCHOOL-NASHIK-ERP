@@ -1,7 +1,7 @@
 <?php
 /**
  * Admin: Teacher Management
- * ABC School Nashik ERP
+ * Bellwether International School Nandurbar ERP
  * Full access: Create Teacher ID, Edit Teacher Details, Delete Teacher
  */
 require_once __DIR__ . '/../includes/auth.php';

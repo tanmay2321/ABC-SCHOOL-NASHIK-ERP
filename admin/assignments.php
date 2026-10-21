@@ -1,7 +1,7 @@
 <?php
 /**
  * Admin: School-Wide Assignments & Homework Oversight
- * ABC School Nashik ERP System
+ * Bellwether International School Nandurbar ERP System
  * Principal / Head Administrator complete access to faculty homework tasks & student submissions
  */
 require_once __DIR__ . '/../includes/auth.php';

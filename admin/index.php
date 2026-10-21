@@ -1,9 +1,11 @@
 <?php
 /**
- * Admin Dashboard - ABC School Nashik ERP
+ * Admin Dashboard - Bellwether International School Nandurbar ERP
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_auth(['admin', 'principal', 'vice_principal']);
+
+$school_name = get_setting($pdo, 'school_name', 'BELLWETHER INTERNATIONAL SCHOOL NANDURBAR');
 
 // Handle Quick Approve / Reject action directly from dashboard
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
@@ -100,7 +102,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 Welcome back, Administrator
             </h1>
             <p class="text-xs sm:text-sm text-slate-500 mt-0.5">
-                Full administrative authority over ABC School Nashik teachers, student admissions, and academic records.
+                Full administrative authority over <?= htmlspecialchars($school_name) ?> teachers, student admissions, and academic records.
             </p>
         </div>
 

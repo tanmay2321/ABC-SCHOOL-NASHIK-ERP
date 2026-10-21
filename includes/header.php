@@ -1,17 +1,17 @@
 <?php
 /**
- * Shared Header for ABC School Nashik ERP
+ * Shared Header for Bellwether International School Nandurbar ERP
  */
 require_once __DIR__ . '/auth.php';
 
 $current_user = current_user();
 $flash = get_flash();
 $current_page = basename($_SERVER['PHP_SELF']);
-$page_title = $page_title ?? 'ABC School Nashik ERP';
+$page_title = $page_title ?? 'Bellwether International School Nandurbar ERP';
 
 $school_logo = get_setting($pdo, 'school_logo', '');
-$school_name = get_setting($pdo, 'school_name', 'ABC School Nashik');
-$school_city = get_setting($pdo, 'school_city', 'Nashik');
+$school_name = get_setting($pdo, 'school_name', 'BELLWETHER INTERNATIONAL SCHOOL NANDURBAR');
+$school_city = get_setting($pdo, 'school_city', 'Nandurbar');
 
 // Pending approvals count for badge (if admin or principal)
 $pending_count = 0;
@@ -63,7 +63,7 @@ if ($current_user && in_array($current_user['role'], ['admin', 'principal'])) {
 <body class="h-full flex flex-col font-sans text-slate-800 antialiased bg-slate-50">
 
     <!-- Top Navigation Bar -->
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm no-print">
         <div class="px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
                 

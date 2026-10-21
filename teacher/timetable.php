@@ -1,7 +1,7 @@
 <?php
 /**
  * Teacher Weekly Teaching Timetable
- * ABC School Nashik ERP System
+ * Bellwether International School Nandurbar ERP System
  */
 
 require_once __DIR__ . '/../config/db.php';
@@ -17,6 +17,8 @@ $teacher = $stmt->fetch();
 if (!$teacher) {
     die("Teacher profile not found.");
 }
+
+$school_name = get_setting($pdo, 'school_name', 'BELLWETHER INTERNATIONAL SCHOOL NANDURBAR');
 
 $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 $today_day = date('l'); // e.g. "Monday"
@@ -68,14 +70,14 @@ require_once __DIR__ . '/../includes/sidebar.php';
             <span class="px-3.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold">
                 <i class="fa-solid fa-chalkboard-user mr-1"></i> <?= htmlspecialchars($teacher['full_name']) ?> (<?= htmlspecialchars($teacher['department']) ?>)
             </span>
-            <button onclick="window.print()" class="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-100 inline-flex items-center gap-1.5 transition">
+            <button onclick="window.print()" class="no-print px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-100 inline-flex items-center gap-1.5 transition">
                 <i class="fa-solid fa-print"></i> Print
             </button>
         </div>
     </div>
 
     <!-- Quick Stats -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 no-print">
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs flex items-center space-x-4">
             <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">
                 <i class="fa-solid fa-clock"></i>
@@ -107,6 +109,13 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 <p class="text-xl font-bold text-slate-800"><?= htmlspecialchars($teacher['department']) ?></p>
             </div>
         </div>
+    </div>
+
+    <!-- Clean Printable Sheet Letterhead (Visible only on Print) -->
+    <div class="hidden print:block p-4 border-b-2 border-slate-900 text-center mb-4">
+        <h2 class="text-base font-black uppercase text-slate-900 font-['Outfit']"><?= htmlspecialchars($school_name) ?></h2>
+        <p class="text-xs font-bold text-emerald-700 uppercase">Faculty Teaching Timetable &amp; Schedule</p>
+        <p class="text-xs text-slate-600 mt-1">Teacher: <strong><?= htmlspecialchars($teacher['full_name']) ?></strong> &bull; Department: <strong><?= htmlspecialchars($teacher['department']) ?></strong> &bull; Printed: <strong><?= date('d M Y') ?></strong></p>
     </div>
 
     <!-- Weekly Schedule Cards -->

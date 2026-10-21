@@ -1,6 +1,6 @@
 <?php
 /**
- * ABC School Nashik ERP - Built-in Server Router & Security Guard
+ * Bellwether International School Nandurbar ERP - Built-in Server Router & Security Guard
  * Used by PHP built-in server: php -S localhost:8000 router.php
  * Protects database files, credentials, and prevents direct script execution in uploads.
  */
@@ -81,5 +81,5 @@ http_response_code(404);
 header('Content-Type: text/html; charset=utf-8');
 echo '<!DOCTYPE html><html><head><title>404 Not Found</title></head><body style="font-family:sans-serif;text-align:center;padding:50px;">' .
      '<h1 style="color:#334155;">404 Not Found</h1><p>The requested page does not exist.</p>' .
-     '<a href="/" style="color:#1e40af;text-decoration:none;font-weight:bold;">&larr; Back to ABC School Home</a></body></html>';
+     '<a href="/" style="color:#1e40af;text-decoration:none;font-weight:bold;">&larr; Back to School Home</a></body></html>';
 return true;

@@ -1,7 +1,7 @@
 <?php
 /**
  * Admin: System Settings, Branding & Principal Profile
- * ABC School Nashik ERP
+ * Bellwether International School Nandurbar ERP
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_auth('admin');
@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // 1. Update School Branding & Logo
     if ($action === 'update_branding') {
         $school_name = trim($_POST['school_name'] ?? '');
-        $school_city = trim($_POST['school_city'] ?? 'Nashik');
+        $school_city = trim($_POST['school_city'] ?? 'Nandurbar');
         $school_affiliation = trim($_POST['school_affiliation'] ?? '');
         $school_address = trim($_POST['school_address'] ?? '');
         $school_phone = trim($_POST['school_phone'] ?? '');
@@ -143,12 +143,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Load current values
-$school_name = get_setting($pdo, 'school_name', 'ABC Senior Secondary School Nashik');
-$school_city = get_setting($pdo, 'school_city', 'Nashik');
+$school_name = get_setting($pdo, 'school_name', 'BELLWETHER INTERNATIONAL SCHOOL NANDURBAR');
+$school_city = get_setting($pdo, 'school_city', 'Nandurbar');
 $school_affiliation = get_setting($pdo, 'school_affiliation', 'CBSE Board Affiliation #113042');
-$school_address = get_setting($pdo, 'school_address', 'Gangapur Road, Nashik, Maharashtra 422013');
-$school_phone = get_setting($pdo, 'school_phone', '+91 253 2570000 / +91 98230 12345');
-$school_email = get_setting($pdo, 'school_email', 'info@abcschoolnashik.edu.in');
+$school_address = get_setting($pdo, 'school_address', 'Old Nalwa Road, Nandurbar - 425412');
+$school_phone = get_setting($pdo, 'school_phone', '+91 6262848446');
+$school_email = get_setting($pdo, 'school_email', 'bwis.nandurbar@gmail.com');
 $school_logo = get_setting($pdo, 'school_logo', '');
 $admin_name = get_setting($pdo, 'admin_name', 'Principal / Head Admin');
 $admin_designation = get_setting($pdo, 'admin_designation', 'Principal & Executive Administrator');
@@ -248,7 +248,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                 Campus City / Location <span class="text-rose-500">*</span>
                             </label>
                             <input type="text" name="school_city" required value="<?= htmlspecialchars($school_city) ?>" 
-                                   placeholder="e.g. Nashik"
+                                   placeholder="e.g. Nandurbar"
                                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-navy-600 transition">
                         </div>
 

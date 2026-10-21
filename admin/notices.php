@@ -1,7 +1,7 @@
 <?php
 /**
  * Admin: Notice Board Management
- * ABC School Nashik ERP
+ * Bellwether International School Nandurbar ERP
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_auth(['admin', 'principal', 'vice_principal']);
@@ -136,7 +136,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 </div>
                 <div>
                     <h3 class="text-lg font-bold text-slate-900 font-['Outfit']">Broadcast New Notice</h3>
-                    <p class="text-xs text-slate-500">Publish update across ABC School Nashik portals</p>
+                    <p class="text-xs text-slate-500">Publish update across Bellwether International School portals</p>
                 </div>
             </div>
             <button type="button" onclick="closeModal('addNoticeModal')" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>

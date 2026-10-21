@@ -1,7 +1,7 @@
 <?php
 /**
  * Teacher: Class Students Directory
- * ABC School Nashik ERP
+ * Bellwether International School Nandurbar ERP
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_auth('teacher');

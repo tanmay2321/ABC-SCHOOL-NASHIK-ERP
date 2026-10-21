@@ -1,7 +1,7 @@
 <?php
 /**
  * Admin: Student Approvals & Roster Management
- * ABC School Nashik ERP
+ * Bellwether International School Nandurbar ERP
  * Full access: Approve/Reject registrations, Edit Student details, Delete
  */
 require_once __DIR__ . '/../includes/auth.php';
@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($user_id > 0) {
             $stmt = $pdo->prepare("UPDATE users SET status = 'approved', updated_at = CURRENT_TIMESTAMP WHERE id = :uid AND role = 'student'");
             $stmt->execute(['uid' => $user_id]);
-            set_flash('success', 'Student registration approved! Student is now permitted to log in to ABC School ERP.');
+            set_flash('success', 'Student registration approved! Student is now permitted to log in to the School ERP.');
             header("Location: /admin/students.php?tab=pending");
             exit();
         }
@@ -443,7 +443,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Email *</label>
-                    <input type="email" name="email" required placeholder="student@student.abc.edu" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-sm focus:outline-none">
+                    <input type="email" name="email" required placeholder="student@bwis.edu.in" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-sm focus:outline-none">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Username *</label>

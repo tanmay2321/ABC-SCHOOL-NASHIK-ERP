@@ -1,7 +1,7 @@
 <?php
 /**
  * Teacher: Attendance Register
- * ABC School Nashik ERP
+ * Bellwether International School Nandurbar ERP
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_auth('teacher');
@@ -13,6 +13,7 @@ $tProfileStmt = $pdo->prepare("SELECT * FROM teachers WHERE user_id = ?");
 $tProfileStmt->execute([$teacher_user_id]);
 $teacher_profile = $tProfileStmt->fetch();
 $assigned_class = $teacher_profile['assigned_class'] ?? null;
+$school_name = get_setting($pdo, 'school_name', 'BELLWETHER INTERNATIONAL SCHOOL NANDURBAR');
 
 // Fetch classes
 $classes = $pdo->query("SELECT DISTINCT class FROM students WHERE class IS NOT NULL AND class != '' ORDER BY class ASC")->fetchAll(PDO::FETCH_COLUMN);
@@ -147,7 +148,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 Student Attendance Register
             </h1>
             <p class="text-xs sm:text-sm text-slate-500 mt-0.5">
-                Mark student physical or online presence for ABC School Nashik academic records.
+                Mark student physical or online presence for Bellwether International School academic records.
             </p>
         </div>
     </div>
@@ -165,7 +166,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
     <!-- Class Teacher Status Banner -->
     <?php if (!empty($assigned_class) && $assigned_class === $class): ?>
-        <div class="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 no-print">
             <div class="flex items-center space-x-3.5">
                 <div class="w-11 h-11 rounded-2xl bg-amber-500 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-amber-500/20">
                     <i class="fa-solid fa-chalkboard-user"></i>
@@ -192,7 +193,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
     <?php elseif (!empty($assigned_class)): ?>
-        <div class="mb-6 p-3.5 rounded-2xl bg-blue-50 border border-blue-200 text-blue-900 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="mb-6 p-3.5 rounded-2xl bg-blue-50 border border-blue-200 text-blue-900 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 no-print">
             <div class="flex items-center space-x-2.5">
                 <i class="fa-solid fa-circle-info text-blue-600 text-base"></i>
                 <span>You are the designated Class Teacher for <strong><?= htmlspecialchars($assigned_class) ?></strong>. Designated Class Teacher for <?= htmlspecialchars($class) ?> is <strong><?= htmlspecialchars($designated_ct_name ?: 'Not alloted') ?></strong>.</span>
@@ -204,7 +205,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
     <?php endif; ?>
 
     <!-- Class & Date Selector Card -->
-    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-6">
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-6 no-print">
         <form method="GET" action="attendance.php" class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Select Class / Grade</label>
@@ -254,8 +255,8 @@ require_once __DIR__ . '/../includes/sidebar.php';
                     </div>
                 </div>
 
-                <!-- Quick Action: Tick/Untick All -->
-                <div class="flex items-center space-x-2">
+                <!-- Quick Action: Tick/Untick All & Print -->
+                <div class="flex flex-wrap items-center gap-2 no-print">
                     <button type="button" onclick="setAllPresent(true)" class="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs transition flex items-center space-x-1.5 shadow-2xs">
                         <i class="fa-solid fa-square-check text-emerald-600"></i>
                         <span>Tick All Present</span>
@@ -264,7 +265,18 @@ require_once __DIR__ . '/../includes/sidebar.php';
                         <i class="fa-regular fa-square text-rose-600"></i>
                         <span>Untick All (Absent)</span>
                     </button>
+                    <button type="button" onclick="window.print()" class="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-bold text-xs transition flex items-center space-x-1.5 shadow-2xs">
+                        <i class="fa-solid fa-print text-navy-800"></i>
+                        <span>Print Sheet</span>
+                    </button>
                 </div>
+            </div>
+
+            <!-- Clean Printable Sheet Letterhead (Visible only on Print) -->
+            <div class="hidden print:block p-4 border-b-2 border-slate-900 text-center">
+                <h2 class="text-base font-black uppercase text-slate-900 font-['Outfit']"><?= htmlspecialchars($school_name) ?></h2>
+                <p class="text-xs font-bold text-amber-700 uppercase">Daily Attendance Register &bull; CBSE Compliance</p>
+                <p class="text-xs text-slate-600 mt-1">Class / Section: <strong><?= htmlspecialchars($class) ?></strong> &bull; Date: <strong><?= date('d M Y', strtotime($date)) ?></strong> &bull; Teacher: <strong><?= htmlspecialchars($teacher_profile['full_name'] ?? 'Faculty') ?></strong></p>
             </div>
 
             <?php if (empty($students)): ?>
@@ -334,7 +346,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                     </table>
                 </div>
 
-                <div class="p-4 sm:p-6 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="p-4 sm:p-6 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 no-print">
                     <span class="text-xs text-slate-500">
                         <i class="fa-solid fa-circle-info text-blue-500 mr-1"></i>
                         Checked boxes indicate <strong>Present</strong>. Unchecked boxes indicate <strong>Absent</strong>.

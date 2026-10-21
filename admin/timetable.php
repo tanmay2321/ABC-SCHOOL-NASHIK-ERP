@@ -1,7 +1,7 @@
 <?php
 /**
  * Class Timetables Management - Admin Portal
- * ABC School Nashik ERP System
+ * Bellwether International School Nandurbar ERP System
  */
 
 require_once __DIR__ . '/../config/db.php';
@@ -12,6 +12,7 @@ require_auth(['admin', 'principal', 'vice_principal']);
 $success = $_SESSION['success'] ?? null;
 $error = $_SESSION['error'] ?? null;
 unset($_SESSION['success'], $_SESSION['error']);
+$school_name = get_setting($pdo, 'school_name', 'BELLWETHER INTERNATIONAL SCHOOL NANDURBAR');
 
 // Handle Timetable Form Submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -101,7 +102,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 <main class="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6 lg:p-8">
 <div class="space-y-6">
     <!-- Top Action Bar -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200 no-print">
         <div>
             <h1 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
                 <i class="fa-solid fa-calendar-days text-indigo-600"></i>
@@ -118,7 +119,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
     <!-- Alerts -->
     <?php if ($success): ?>
-        <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm flex items-center justify-between">
+        <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm flex items-center justify-between no-print">
             <div class="flex items-center gap-2">
                 <i class="fa-solid fa-circle-check text-emerald-600 text-base"></i>
                 <span><?= htmlspecialchars($success) ?></span>
@@ -128,7 +129,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
     <?php endif; ?>
 
     <?php if ($error): ?>
-        <div class="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm flex items-center justify-between">
+        <div class="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm flex items-center justify-between no-print">
             <div class="flex items-center gap-2">
                 <i class="fa-solid fa-triangle-exclamation text-rose-600 text-base"></i>
                 <span><?= htmlspecialchars($error) ?></span>
@@ -138,13 +139,20 @@ require_once __DIR__ . '/../includes/sidebar.php';
     <?php endif; ?>
 
     <!-- Class Selector Tabs -->
-    <div class="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-200">
+    <div class="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-200 no-print">
         <span class="text-xs font-bold uppercase text-slate-400 mr-2 shrink-0">Select Class:</span>
         <?php foreach ($all_classes as $cls): ?>
             <a href="/admin/timetable.php?class=<?= urlencode($cls) ?>" class="px-4 py-2 rounded-xl text-xs font-bold transition shrink-0 <?= $selected_class === $cls ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200' ?>">
                 <?= htmlspecialchars($cls) ?>
             </a>
         <?php endforeach; ?>
+    </div>
+
+    <!-- Clean Printable Sheet Letterhead (Visible only on Print) -->
+    <div class="hidden print:block p-4 border-b-2 border-slate-900 text-center mb-4">
+        <h2 class="text-base font-black uppercase text-slate-900 font-['Outfit']"><?= htmlspecialchars($school_name) ?></h2>
+        <p class="text-xs font-bold text-indigo-700 uppercase">Official Master Timetable &bull; Academic Schedule</p>
+        <p class="text-xs text-slate-600 mt-1">Class / Section: <strong><?= htmlspecialchars($selected_class) ?></strong> &bull; Printed: <strong><?= date('d M Y') ?></strong></p>
     </div>
 
     <!-- Timetable Grid -->
@@ -157,7 +165,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 </h2>
                 <p class="text-xs text-slate-500">6 periods per day (Monday to Saturday)</p>
             </div>
-            <button onclick="window.print()" class="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-100 inline-flex items-center gap-1.5 transition">
+            <button onclick="window.print()" class="no-print px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-100 inline-flex items-center gap-1.5 transition">
                 <i class="fa-solid fa-print"></i> Print Timetable
             </button>
         </div>

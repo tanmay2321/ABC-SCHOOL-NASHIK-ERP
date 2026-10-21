@@ -1,7 +1,7 @@
 <?php
 /**
  * Hardened Authentication, Session Security & Protection Architecture
- * ABC School Nashik ERP System
+ * Bellwether International School Nandurbar ERP System
  */
 
 if (!ob_get_level()) {
@@ -132,7 +132,7 @@ function current_user() {
 // Require authentication
 function require_auth($allowed_roles = []) {
     if (!is_logged_in()) {
-        set_flash('danger', 'Please login to access the ABC School ERP portal.');
+        set_flash('danger', 'Please login to access the School ERP portal.');
         header("Location: /login.php");
         exit();
     }

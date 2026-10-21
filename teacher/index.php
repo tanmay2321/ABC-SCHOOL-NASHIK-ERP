@@ -1,6 +1,6 @@
 <?php
 /**
- * Teacher Dashboard - ABC School Nashik ERP
+ * Teacher Dashboard - Bellwether International School Nandurbar ERP
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_auth('teacher');

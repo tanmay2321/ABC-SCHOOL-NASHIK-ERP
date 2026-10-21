@@ -1,7 +1,7 @@
 <?php
 /**
  * Teacher: Notices & Circulars
- * ABC School Nashik ERP
+ * Bellwether International School Nandurbar ERP
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_auth('teacher');
@@ -24,7 +24,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
             School Notices &amp; Circulars
         </h1>
         <p class="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Official announcements issued by ABC School Nashik Administration for faculty and staff.
+            Official announcements issued by Bellwether International School Administration for faculty and staff.
         </p>
     </div>
 

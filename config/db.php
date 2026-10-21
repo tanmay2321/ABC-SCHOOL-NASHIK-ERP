@@ -1,7 +1,7 @@
 <?php
 /**
  * Database Configuration & Auto-Migration
- * ABC School Nashik ERP System
+ * Bellwether International School Nandurbar ERP System
  */
 
 $db_file = __DIR__ . '/../database.sqlite';
@@ -189,6 +189,31 @@ function init_database($pdo) {
             key TEXT PRIMARY KEY,
             value TEXT
         );
+
+        -- ADVANCED ERP MODULE 5: Curriculum & Subjects per Class
+        CREATE TABLE IF NOT EXISTS subjects (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            class TEXT NOT NULL,
+            name TEXT NOT NULL,
+            code TEXT DEFAULT '',
+            max_marks REAL DEFAULT 100,
+            pass_marks REAL DEFAULT 35,
+            syllabus_info TEXT DEFAULT '',
+            academic_year TEXT DEFAULT '2026-2027',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- ADVANCED ERP MODULE 6: Academic Year Batch Promotion History
+        CREATE TABLE IF NOT EXISTS promotion_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id INTEGER NOT NULL,
+            from_class TEXT NOT NULL,
+            to_class TEXT NOT NULL,
+            academic_year TEXT NOT NULL,
+            promoted_by INTEGER,
+            promoted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+        );
     ");
 
     // Migration: ensure assigned_class exists in teachers table
@@ -237,19 +262,20 @@ function init_database($pdo) {
 
     // 3. Default Institution Settings
     $defaults = [
-        'school_name' => 'ABC Senior Secondary School Nashik',
-        'school_city' => 'Nashik',
-        'school_affiliation' => 'CBSE Board Affiliation #113042',
-        'school_address' => 'Gangapur Road, Nashik, Maharashtra 422013',
-        'school_phone' => '+91 253 2570000 / +91 98230 12345',
-        'school_email' => 'info@abcschoolnashik.edu.in',
+        'school_name' => 'BELLWETHER INTERNATIONAL SCHOOL NANDURBAR',
+        'school_city' => 'Nandurbar',
+        'school_affiliation' => 'CBSE Affiliation #113042',
+        'school_address' => 'Old Nalwa Road, Nandurbar - 425412',
+        'school_phone' => '+91 6262848446',
+        'school_email' => 'bwis.nandurbar@gmail.com',
         'admin_name' => 'System Administrator',
         'admin_designation' => 'IT & Systems Head Administrator',
         'principal_name' => 'Dr. R. K. Sharma',
         'principal_designation' => 'Head Principal',
         'vice_principal_name' => 'Prof. S. M. Deshmukh',
         'vice_principal_designation' => 'Vice Principal (Academics)',
-        'school_logo' => ''
+        'school_logo' => '',
+        'current_academic_year' => '2026-2027'
     ];
 
     $check_setting = $pdo->prepare("SELECT COUNT(*) FROM settings WHERE key = ?");
@@ -258,6 +284,34 @@ function init_database($pdo) {
         $check_setting->execute([$k]);
         if ($check_setting->fetchColumn() == 0) {
             $insert_setting->execute([$k, $v]);
+        }
+    }
+
+    // 4. Seed Standard Subjects if table is empty
+    $subj_count = $pdo->query("SELECT COUNT(*) FROM subjects")->fetchColumn();
+    if ($subj_count == 0) {
+        $common_classes = [
+            'Class 10-A', 'Class 10-B', 'Class 9-A', 'Class 9-B', 'Class 8-A', 'Class 8-B',
+            'Grade 10', 'Grade 9', 'Grade 8', 'Grade 7', 'Grade 6', 'Grade 5', 'Grade 4', 'Grade 3', 'Grade 2', 'Grade 1'
+        ];
+        $standard_subjects = [
+            ['name' => 'English Literature & Lang', 'code' => 'ENG', 'max' => 100, 'pass' => 35],
+            ['name' => 'Mathematics', 'code' => 'MATH', 'max' => 100, 'pass' => 35],
+            ['name' => 'General Science', 'code' => 'SCI', 'max' => 100, 'pass' => 35],
+            ['name' => 'Social Science', 'code' => 'SST', 'max' => 100, 'pass' => 35],
+            ['name' => 'Hindi', 'code' => 'HIN', 'max' => 100, 'pass' => 35],
+            ['name' => 'Computer Science & AI', 'code' => 'CS', 'max' => 100, 'pass' => 35]
+        ];
+
+        $ins_subj = $pdo->prepare("
+            INSERT INTO subjects (class, name, code, max_marks, pass_marks, syllabus_info, academic_year)
+            VALUES (?, ?, ?, ?, ?, 'CBSE Prescribed Curriculum', '2026-2027')
+        ");
+
+        foreach ($common_classes as $cls) {
+            foreach ($standard_subjects as $s) {
+                $ins_subj->execute([$cls, $s['name'], $s['code'], $s['max'], $s['pass']]);
+            }
         }
     }
 }
