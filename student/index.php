@@ -166,8 +166,28 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
     </div>
 
-    <!-- Student ERP Modules: Fees, Homework, Timetable -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">
+    <!-- Student ERP Modules: LMS, Fees, Homework, Timetable -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+        <!-- LMS Courseware Card -->
+        <div class="p-5 rounded-2xl bg-gradient-to-br from-blue-900 via-navy-900 to-indigo-950 text-white shadow-md flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between text-blue-200">
+                    <span class="text-xs font-bold uppercase tracking-wider">LMS Courseware</span>
+                    <i class="fa-solid fa-graduation-cap text-amber-400 text-lg"></i>
+                </div>
+                <div class="mt-2">
+                    <div class="text-2xl font-black text-white font-['Outfit']">Subjects &amp; Notes</div>
+                    <div class="text-xs text-blue-200">Faculty materials &amp; syllabus</div>
+                </div>
+            </div>
+            <div class="mt-4 pt-2 border-t border-blue-800/80">
+                <a href="/student/lms.php" class="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center justify-between">
+                    <span>Open My Courses</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+
         <!-- Fees Card -->
         <div class="p-5 rounded-2xl bg-gradient-to-br from-indigo-900 to-navy-900 text-white shadow-md flex flex-col justify-between">
             <div>

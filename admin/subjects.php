@@ -25,9 +25,31 @@ sort($all_classes);
 $selected_class = $_GET['class'] ?? 'all';
 $selected_year = $_GET['year'] ?? $current_academic_year;
 
+// Fetch all approved teachers for allocation
+$all_teachers = $pdo->query("
+    SELECT t.id, t.full_name, t.department, t.teacher_code, t.designation, t.photo 
+    FROM teachers t
+    JOIN users u ON t.user_id = u.id
+    WHERE u.status = 'approved'
+    ORDER BY t.full_name ASC
+")->fetchAll();
+
 // Handle Form Submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
+
+    // 0. Quick Faculty Allocation
+    if ($action === 'quick_allocate_teacher') {
+        $subject_id = (int)($_POST['subject_id'] ?? 0);
+        $teacher_id = !empty($_POST['teacher_id']) ? (int)$_POST['teacher_id'] : null;
+        $class_redir = $_POST['redirect_class'] ?? 'all';
+        if ($subject_id > 0) {
+            $pdo->prepare("UPDATE subjects SET teacher_id = ? WHERE id = ?")->execute([$teacher_id, $subject_id]);
+            set_flash('success', 'Faculty allocation updated successfully!');
+        }
+        header("Location: /admin/subjects.php?class=" . urlencode($class_redir));
+        exit;
+    }
 
     // 1. Add Subject
     if ($action === 'add_subject') {
@@ -38,6 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pass_marks = (float)($_POST['pass_marks'] ?? 35);
         $syllabus = trim($_POST['syllabus_info'] ?? '');
         $acad_year = trim($_POST['academic_year'] ?? $current_academic_year);
+        $teacher_id = !empty($_POST['teacher_id']) ? (int)$_POST['teacher_id'] : null;
 
         if (empty($class_name) || empty($name)) {
             set_flash('danger', 'Please provide both Class and Subject Name.');
@@ -49,10 +72,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 set_flash('danger', "Subject '{$name}' is already configured for {$class_name} ({$acad_year}).");
             } else {
                 $ins = $pdo->prepare("
-                    INSERT INTO subjects (class, name, code, max_marks, pass_marks, syllabus_info, academic_year)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO subjects (class, name, code, max_marks, pass_marks, syllabus_info, academic_year, teacher_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ");
-                $ins->execute([$class_name, $name, $code, $max_marks, $pass_marks, $syllabus, $acad_year]);
+                $ins->execute([$class_name, $name, $code, $max_marks, $pass_marks, $syllabus, $acad_year, $teacher_id]);
                 set_flash('success', "Subject '{$name}' added successfully for {$class_name} ({$acad_year})!");
             }
         }
@@ -70,14 +93,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pass_marks = (float)($_POST['pass_marks'] ?? 35);
         $syllabus = trim($_POST['syllabus_info'] ?? '');
         $acad_year = trim($_POST['academic_year'] ?? $current_academic_year);
+        $teacher_id = !empty($_POST['teacher_id']) ? (int)$_POST['teacher_id'] : null;
 
         if ($id > 0 && !empty($class_name) && !empty($name)) {
             $upd = $pdo->prepare("
                 UPDATE subjects 
-                SET class = ?, name = ?, code = ?, max_marks = ?, pass_marks = ?, syllabus_info = ?, academic_year = ?
+                SET class = ?, name = ?, code = ?, max_marks = ?, pass_marks = ?, syllabus_info = ?, academic_year = ?, teacher_id = ?
                 WHERE id = ?
             ");
-            $upd->execute([$class_name, $name, $code, $max_marks, $pass_marks, $syllabus, $acad_year, $id]);
+            $upd->execute([$class_name, $name, $code, $max_marks, $pass_marks, $syllabus, $acad_year, $teacher_id, $id]);
             set_flash('success', "Subject '{$name}' updated successfully.");
         }
         header("Location: /admin/subjects.php?class=" . urlencode($class_name) . "&year=" . urlencode($acad_year));
@@ -151,7 +175,18 @@ if (!empty($selected_year)) {
 }
 
 $where_clause = !empty($where) ? "WHERE " . implode(" AND ", $where) : "";
-$stmt = $pdo->prepare("SELECT * FROM subjects {$where_clause} ORDER BY class ASC, name ASC");
+$stmt = $pdo->prepare("
+    SELECT s.*, 
+           t.full_name as teacher_name, 
+           t.department as teacher_department, 
+           t.designation as teacher_designation,
+           t.photo as teacher_photo,
+           t.teacher_code
+    FROM subjects s
+    LEFT JOIN teachers t ON s.teacher_id = t.id
+    {$where_clause} 
+    ORDER BY s.class ASC, s.name ASC
+");
 $stmt->execute($params);
 $subjects = $stmt->fetchAll();
 
@@ -254,6 +289,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                         <tr>
                             <th class="py-3 px-4 sm:px-6">Class / Grade</th>
                             <th class="py-3 px-4">Subject Name</th>
+                            <th class="py-3 px-4">Allocated Faculty / Teacher</th>
                             <th class="py-3 px-4">Subject Code</th>
                             <th class="py-3 px-4 text-center">Max Marks</th>
                             <th class="py-3 px-4 text-center">Pass Marks</th>
@@ -272,6 +308,35 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                 </td>
                                 <td class="py-3 px-4 font-bold text-slate-900 text-sm">
                                     <?= htmlspecialchars($s['name']) ?>
+                                </td>
+                                <td class="py-3 px-4 whitespace-nowrap">
+                                    <?php if (!empty($s['teacher_name'])): ?>
+                                        <div class="flex items-center space-x-2">
+                                            <?php if (!empty($s['teacher_photo']) && file_exists(__DIR__ . '/../' . ltrim($s['teacher_photo'], '/'))): ?>
+                                                <img src="<?= htmlspecialchars($s['teacher_photo']) ?>" alt="Teacher" class="w-7 h-7 rounded-lg object-cover border border-amber-300">
+                                            <?php else: ?>
+                                                <div class="w-7 h-7 rounded-lg bg-navy-900 text-amber-400 font-bold text-xs flex items-center justify-center">
+                                                    <?= strtoupper(substr($s['teacher_name'], 0, 1)) ?>
+                                                </div>
+                                            <?php endif; ?>
+                                            <div>
+                                                <span class="font-bold text-slate-800 block leading-tight"><?= htmlspecialchars($s['teacher_name']) ?></span>
+                                                <span class="text-[10px] text-slate-400 block"><?= htmlspecialchars($s['teacher_department'] ?: 'Faculty') ?></span>
+                                            </div>
+                                        </div>
+                                    <?php else: ?>
+                                        <form method="POST" action="subjects.php" class="inline-flex items-center space-x-1.5">
+                                            <input type="hidden" name="action" value="quick_allocate_teacher">
+                                            <input type="hidden" name="subject_id" value="<?= $s['id'] ?>">
+                                            <input type="hidden" name="redirect_class" value="<?= htmlspecialchars($selected_class) ?>">
+                                            <select name="teacher_id" onchange="this.form.submit()" class="px-2 py-1 rounded-lg border border-amber-300 bg-amber-50/70 text-amber-900 text-[11px] font-semibold focus:outline-none cursor-pointer">
+                                                <option value="">+ Assign Teacher</option>
+                                                <?php foreach ($all_teachers as $t): ?>
+                                                    <option value="<?= $t['id'] ?>"><?= htmlspecialchars($t['full_name']) ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </form>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="py-3 px-4 font-mono font-semibold text-blue-700">
                                     <?= htmlspecialchars($s['code'] ?: 'N/A') ?>
@@ -352,6 +417,16 @@ require_once __DIR__ . '/../includes/sidebar.php';
                        class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-navy-600">
             </div>
 
+            <div>
+                <label class="block font-bold text-slate-700 uppercase tracking-wider mb-1">Allocated Faculty / Teacher</label>
+                <select name="teacher_id" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-navy-600">
+                    <option value="">-- No Teacher Allocated (Assign Later) --</option>
+                    <?php foreach ($all_teachers as $t): ?>
+                        <option value="<?= $t['id'] ?>"><?= htmlspecialchars($t['full_name']) ?> (<?= htmlspecialchars($t['department']) ?>)</option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
             <div class="grid grid-cols-3 gap-3">
                 <div>
                     <label class="block font-bold text-slate-700 uppercase tracking-wider mb-1">Code</label>
@@ -418,6 +493,16 @@ require_once __DIR__ . '/../includes/sidebar.php';
             <div>
                 <label class="block font-bold text-slate-700 uppercase tracking-wider mb-1">Subject Name *</label>
                 <input type="text" name="name" id="edit_subject_name" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-800 text-xs focus:outline-none">
+            </div>
+
+            <div>
+                <label class="block font-bold text-slate-700 uppercase tracking-wider mb-1">Allocated Faculty / Teacher</label>
+                <select name="teacher_id" id="edit_subject_teacher_id" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-navy-600">
+                    <option value="">-- No Teacher Allocated (Assign Later) --</option>
+                    <?php foreach ($all_teachers as $t): ?>
+                        <option value="<?= $t['id'] ?>"><?= htmlspecialchars($t['full_name']) ?> (<?= htmlspecialchars($t['department']) ?>)</option>
+                    <?php endforeach; ?>
+                </select>
             </div>
 
             <div class="grid grid-cols-3 gap-3">
@@ -533,6 +618,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
         document.getElementById('edit_subject_pass').value = sub.pass_marks;
         document.getElementById('edit_subject_year').value = sub.academic_year || '2026-2027';
         document.getElementById('edit_subject_syllabus').value = sub.syllabus_info || '';
+        document.getElementById('edit_subject_teacher_id').value = sub.teacher_id || '';
         openModal('editSubjectModal');
     }
 </script>

@@ -215,12 +215,18 @@ require_once __DIR__ . '/../includes/sidebar.php';
                 </div>
             </div>
 
-            <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-xs grid grid-cols-2 gap-3 mb-4">
-                <div>Student Name: <strong class="text-slate-900"><?= htmlspecialchars($student['full_name']) ?></strong></div>
-                <div>Student ID: <span class="font-mono text-blue-700 font-bold"><?= htmlspecialchars($student['student_code']) ?></span></div>
-                <div>Class &amp; Roll: <strong class="text-slate-900"><?= htmlspecialchars($student['class']) ?> (Roll <?= htmlspecialchars($student['roll_no'] ?: 'N/A') ?>)</strong></div>
-                <div>Payment Mode: <span class="font-bold text-emerald-700"><?= htmlspecialchars($receipt_to_view['payment_mode']) ?></span></div>
-                <div class="col-span-2">Transaction Ref: <span class="font-mono text-slate-600"><?= htmlspecialchars($receipt_to_view['transaction_ref'] ?: 'Direct Account Deposit') ?></span></div>
+            <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-xs flex items-center gap-4 mb-4">
+                <?php if (!empty($student['photo']) && file_exists(__DIR__ . '/../' . ltrim($student['photo'], '/'))): ?>
+                    <img src="<?= htmlspecialchars($student['photo']) ?>" alt="Student Photo" 
+                         class="w-14 h-16 rounded-xl object-cover border border-slate-300 shadow-2xs shrink-0 bg-white">
+                <?php endif; ?>
+                <div class="flex-1 grid grid-cols-2 gap-2">
+                    <div>Student Name: <strong class="text-slate-900"><?= htmlspecialchars($student['full_name']) ?></strong></div>
+                    <div>Student ID: <span class="font-mono text-blue-700 font-bold"><?= htmlspecialchars($student['student_code']) ?></span></div>
+                    <div>Class &amp; Roll: <strong class="text-slate-900"><?= htmlspecialchars($student['class']) ?> (Roll <?= htmlspecialchars($student['roll_no'] ?: 'N/A') ?>)</strong></div>
+                    <div>Payment Mode: <span class="font-bold text-emerald-700"><?= htmlspecialchars($receipt_to_view['payment_mode']) ?></span></div>
+                    <div class="col-span-2">Transaction Ref: <span class="font-mono text-slate-600"><?= htmlspecialchars($receipt_to_view['transaction_ref'] ?: 'Direct Account Deposit') ?></span></div>
+                </div>
             </div>
 
             <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-center mb-6">

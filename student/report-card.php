@@ -107,9 +107,13 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <!-- Student Information Card -->
-        <div class="bg-slate-50 rounded-2xl border border-slate-200 p-5 mb-8 text-xs">
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <!-- Student Information Card with Photo -->
+        <div class="bg-slate-50 rounded-2xl border border-slate-200 p-5 mb-8 text-xs flex flex-col sm:flex-row items-center sm:items-start gap-5">
+            <?php if (!empty($student['photo']) && file_exists(__DIR__ . '/../' . ltrim($student['photo'], '/'))): ?>
+                <img src="<?= htmlspecialchars($student['photo']) ?>" alt="Student Photo" 
+                     class="w-20 h-24 rounded-xl object-cover border-2 border-slate-300 shadow-xs shrink-0 bg-white">
+            <?php endif; ?>
+            <div class="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-4 w-full">
                 <div>
                     <span class="block text-slate-400 uppercase text-[10px] font-bold">Student Name</span>
                     <strong class="text-slate-900 text-sm"><?= htmlspecialchars($student['full_name'] ?? 'N/A') ?></strong>

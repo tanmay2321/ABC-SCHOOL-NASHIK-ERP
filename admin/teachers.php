@@ -243,9 +243,13 @@ require_once __DIR__ . '/../includes/sidebar.php';
                         <tr class="hover:bg-slate-50/70 transition">
                             <td class="py-3.5 px-4 sm:px-6">
                                 <div class="flex items-center space-x-3">
-                                    <div class="w-9 h-9 rounded-xl bg-navy-800 text-amber-300 flex items-center justify-center font-bold text-xs shrink-0">
-                                        <?= strtoupper(substr($t['full_name'], 0, 1)) ?>
-                                    </div>
+                                    <?php if (!empty($t['photo']) && file_exists(__DIR__ . '/../' . ltrim($t['photo'], '/'))): ?>
+                                        <img src="<?= htmlspecialchars($t['photo']) ?>" alt="Photo" class="w-9 h-9 rounded-xl object-cover border border-amber-300 shadow-2xs shrink-0">
+                                    <?php else: ?>
+                                        <div class="w-9 h-9 rounded-xl bg-navy-800 text-amber-300 flex items-center justify-center font-bold text-xs shrink-0">
+                                            <?= strtoupper(substr($t['full_name'], 0, 1)) ?>
+                                        </div>
+                                    <?php endif; ?>
                                     <div>
                                         <div class="font-bold text-slate-900"><?= htmlspecialchars($t['full_name']) ?></div>
                                         <div class="text-[11px] text-slate-500"><?= htmlspecialchars($t['email']) ?></div>
@@ -282,7 +286,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                 <div class="flex items-center justify-end space-x-2">
                                     <!-- Edit Teacher Button -->
                                     <button type="button" 
-                                            onclick='openEditTeacherModal(<?= json_encode($t) ?>)'
+                                            onclick='openEditTeacherModal(<?= htmlspecialchars(json_encode($t), ENT_QUOTES, "UTF-8") ?>)'
                                             class="p-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold text-xs transition" title="Edit Teacher Details">
                                         <i class="fa-solid fa-pen-to-square"></i>
                                     </button>

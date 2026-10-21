@@ -304,9 +304,13 @@ require_once __DIR__ . '/../includes/sidebar.php';
                         <tr class="hover:bg-slate-50/70 transition">
                             <td class="py-3.5 px-4 sm:px-6">
                                 <div class="flex items-center space-x-3">
-                                    <div class="w-9 h-9 rounded-xl <?= $s['gender'] === 'Female' ? 'bg-pink-100 text-pink-700' : 'bg-blue-100 text-blue-700' ?> flex items-center justify-center font-bold text-xs shrink-0">
-                                        <?= strtoupper(substr($s['full_name'], 0, 1)) ?>
-                                    </div>
+                                    <?php if (!empty($s['photo']) && file_exists(__DIR__ . '/../' . ltrim($s['photo'], '/'))): ?>
+                                        <img src="<?= htmlspecialchars($s['photo']) ?>" alt="Photo" class="w-9 h-9 rounded-xl object-cover border border-amber-300 shadow-2xs shrink-0">
+                                    <?php else: ?>
+                                        <div class="w-9 h-9 rounded-xl <?= $s['gender'] === 'Female' ? 'bg-pink-100 text-pink-700' : 'bg-blue-100 text-blue-700' ?> flex items-center justify-center font-bold text-xs shrink-0">
+                                            <?= strtoupper(substr($s['full_name'], 0, 1)) ?>
+                                        </div>
+                                    <?php endif; ?>
                                     <div>
                                         <div class="font-bold text-slate-900"><?= htmlspecialchars($s['full_name']) ?></div>
                                         <div class="text-[11px] text-slate-500"><?= htmlspecialchars($s['email']) ?></div>
@@ -376,7 +380,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                                     <!-- Edit Student Details Button (Admin Full Access) -->
                                     <button type="button" 
-                                            onclick='openEditStudentModal(<?= json_encode($s) ?>)'
+                                            onclick='openEditStudentModal(<?= htmlspecialchars(json_encode($s), ENT_QUOTES, "UTF-8") ?>)'
                                             class="p-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold text-xs transition" title="Edit Student Details">
                                         <i class="fa-solid fa-pen-to-square"></i>
                                     </button>
@@ -516,7 +520,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
     <div class="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 animate-fade-in my-8">
         <div class="flex items-center justify-between pb-4 border-b border-slate-200 mb-6">
             <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
+                <div id="edit_student_avatar" class="w-11 h-11 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold overflow-hidden border border-amber-200 shrink-0">
                     <i class="fa-solid fa-user-pen text-lg"></i>
                 </div>
                 <div>
@@ -624,6 +628,12 @@ require_once __DIR__ . '/../includes/sidebar.php';
         document.getElementById('edit_blood_group').value = s.blood_group || '';
         document.getElementById('edit_address').value = s.address || '';
         document.getElementById('edit_status').value = s.status || 'approved';
+        const av = document.getElementById('edit_student_avatar');
+        if (s.photo) {
+            av.innerHTML = `<img src="${s.photo}" class="w-full h-full object-cover">`;
+        } else {
+            av.innerHTML = `<i class="fa-solid fa-user-pen text-lg"></i>`;
+        }
         openModal('editStudentModal');
     }
 </script>

@@ -128,19 +128,34 @@ if ($current_user && in_array($current_user['role'], ['admin', 'principal'])) {
                                 $role_icon = 'fa-user-graduate';
                                 $role_label = 'Student';
                             }
+
+                            $profile_url = '#';
+                            if ($current_user['role'] === 'teacher') $profile_url = '/teacher/profile.php';
+                            elseif ($current_user['role'] === 'student') $profile_url = '/student/profile.php';
+                            elseif (in_array($current_user['role'], ['admin', 'principal', 'vice_principal'])) $profile_url = '/admin/leadership.php';
+
+                            $user_photo = $current_user['photo'] ?? null;
+                            $has_photo = !empty($user_photo) && file_exists(__DIR__ . '/../' . ltrim($user_photo, '/'));
                         ?>
                         <div class="flex items-center space-x-2 sm:space-x-3 pl-2 border-l border-slate-200">
-                            <div class="hidden md:block text-right min-w-0 max-w-[150px]">
-                                <p class="text-xs font-bold text-slate-900 leading-tight truncate" title="<?= htmlspecialchars($current_user['name']) ?>"><?= htmlspecialchars($current_user['name']) ?></p>
+                            <a href="<?= $profile_url ?>" class="hidden md:block text-right min-w-0 max-w-[150px] group" title="View Profile">
+                                <p class="text-xs font-bold text-slate-900 group-hover:text-blue-600 transition leading-tight truncate" title="<?= htmlspecialchars($current_user['name']) ?>"><?= htmlspecialchars($current_user['name']) ?></p>
                                 <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold <?= $role_badge ?> mt-0.5">
                                     <i class="fa-solid <?= $role_icon ?> text-[9px] mr-1"></i>
                                     <?= $role_label ?>
                                 </span>
-                            </div>
+                            </a>
                             
-                            <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-tr from-navy-800 to-blue-600 text-white font-bold flex items-center justify-center text-xs sm:text-sm shadow-sm shrink-0" title="<?= htmlspecialchars($current_user['name']) ?>">
-                                <?= strtoupper(substr($current_user['name'], 0, 1)) ?>
-                            </div>
+                            <a href="<?= $profile_url ?>" class="block group shrink-0" title="My Profile (<?= htmlspecialchars($current_user['name']) ?>)">
+                                <?php if ($has_photo): ?>
+                                    <img src="<?= htmlspecialchars($user_photo) ?>" alt="Profile" 
+                                         class="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover border-2 border-amber-400 shadow-sm group-hover:scale-105 group-hover:ring-2 group-hover:ring-blue-500 transition-all">
+                                <?php else: ?>
+                                    <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-tr from-navy-800 to-blue-600 text-white font-bold flex items-center justify-center text-xs sm:text-sm shadow-sm group-hover:scale-105 group-hover:ring-2 group-hover:ring-blue-500 transition-all">
+                                        <?= strtoupper(substr($current_user['name'], 0, 1)) ?>
+                                    </div>
+                                <?php endif; ?>
+                            </a>
 
                             <a href="/logout.php" class="p-1.5 sm:p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition" title="Logout">
                                 <i class="fa-solid fa-arrow-right-from-bracket text-sm sm:text-base"></i>

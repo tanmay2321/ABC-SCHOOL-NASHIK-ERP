@@ -91,6 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $_SESSION['profile_id'] = $student['id'] ?? null;
                         $_SESSION['code'] = $student['student_code'] ?? '';
                         $_SESSION['class'] = $student['class'] ?? '';
+                        $_SESSION['photo'] = $student['photo'] ?? null;
 
                         header("Location: /student/index.php");
                         exit();
@@ -112,6 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $_SESSION['profile_id'] = $teacher['id'] ?? null;
                         $_SESSION['code'] = $teacher['teacher_code'] ?? '';
                         $_SESSION['department'] = $teacher['department'] ?? '';
+                        $_SESSION['photo'] = $teacher['photo'] ?? null;
 
                         header("Location: /teacher/index.php");
                         exit();

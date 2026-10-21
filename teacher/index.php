@@ -263,6 +263,17 @@ require_once __DIR__ . '/../includes/sidebar.php';
                     </div>
                     <span class="text-xs font-bold text-amber-700 mt-4 flex items-center">View Schedule &rarr;</span>
                 </a>
+
+                <a href="/teacher/notes.php" class="p-4 rounded-2xl bg-gradient-to-br from-rose-50 to-red-50/40 border border-rose-200/60 hover:border-rose-400 transition group flex flex-col justify-between">
+                    <div>
+                        <div class="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center mb-3 shadow-md shadow-rose-500/20 group-hover:scale-105 transition">
+                            <i class="fa-solid fa-file-pdf text-base"></i>
+                        </div>
+                        <h4 class="text-sm font-bold text-slate-900">Study Notes &amp; Syllabus</h4>
+                        <p class="text-xs text-slate-500 mt-1">Upload chapter documents, formula sheets, and update course syllabus.</p>
+                    </div>
+                    <span class="text-xs font-bold text-rose-700 mt-4 flex items-center">Manage Notes &rarr;</span>
+                </a>
             </div>
 
             <!-- Teacher Info Box -->

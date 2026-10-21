@@ -214,12 +214,59 @@ function init_database($pdo) {
             promoted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
         );
+
+        -- ADVANCED ERP MODULE 7: Study Notes & Course Materials
+        CREATE TABLE IF NOT EXISTS study_notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            teacher_id INTEGER NOT NULL,
+            class TEXT NOT NULL,
+            subject TEXT NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            file_path TEXT NOT NULL,
+            file_name TEXT NOT NULL,
+            file_size INTEGER DEFAULT 0,
+            file_type TEXT DEFAULT 'pdf',
+            academic_year TEXT DEFAULT '2026-2027',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE
+        );
     ");
 
-    // Migration: ensure assigned_class exists in teachers table
+    // Migration: ensure assigned_class and photo exist in teachers table
     $t_cols = $pdo->query("PRAGMA table_info(teachers)")->fetchAll(PDO::FETCH_COLUMN, 1);
     if (!in_array('assigned_class', $t_cols)) {
         $pdo->exec("ALTER TABLE teachers ADD COLUMN assigned_class TEXT DEFAULT NULL;");
+    }
+    if (!in_array('photo', $t_cols)) {
+        $pdo->exec("ALTER TABLE teachers ADD COLUMN photo TEXT DEFAULT NULL;");
+    }
+
+    // Migration: ensure photo exists in students table
+    $s_cols = $pdo->query("PRAGMA table_info(students)")->fetchAll(PDO::FETCH_COLUMN, 1);
+    if (!in_array('photo', $s_cols)) {
+        $pdo->exec("ALTER TABLE students ADD COLUMN photo TEXT DEFAULT NULL;");
+    }
+
+    // Migration: ensure teacher_id exists in subjects table
+    $subj_cols = $pdo->query("PRAGMA table_info(subjects)")->fetchAll(PDO::FETCH_COLUMN, 1);
+    if (!in_array('teacher_id', $subj_cols)) {
+        $pdo->exec("ALTER TABLE subjects ADD COLUMN teacher_id INTEGER DEFAULT NULL;");
+    }
+
+    // Ensure upload directories exist
+    $dirs_to_create = [
+        __DIR__ . '/../uploads',
+        __DIR__ . '/../uploads/logo',
+        __DIR__ . '/../uploads/assignments',
+        __DIR__ . '/../uploads/submissions',
+        __DIR__ . '/../uploads/notes',
+        __DIR__ . '/../uploads/profiles'
+    ];
+    foreach ($dirs_to_create as $d) {
+        if (!is_dir($d)) {
+            @mkdir($d, 0777, true);
+        }
     }
 
     // Migration: ensure users table supports principal & vice_principal roles

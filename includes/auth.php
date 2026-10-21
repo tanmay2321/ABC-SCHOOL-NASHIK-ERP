@@ -114,9 +114,32 @@ function is_logged_in() {
 
 // Get logged in user data
 function current_user() {
+    global $pdo;
     if (!is_logged_in()) {
         return null;
     }
+
+    // Lazy load photo into session if not set
+    if (!isset($_SESSION['photo']) && isset($pdo)) {
+        try {
+            $uid = $_SESSION['user_id'];
+            $role = $_SESSION['role'];
+            if ($role === 'teacher') {
+                $stmt = $pdo->prepare("SELECT photo FROM teachers WHERE user_id = ?");
+                $stmt->execute([$uid]);
+                $_SESSION['photo'] = $stmt->fetchColumn() ?: null;
+            } elseif ($role === 'student') {
+                $stmt = $pdo->prepare("SELECT photo FROM students WHERE user_id = ?");
+                $stmt->execute([$uid]);
+                $_SESSION['photo'] = $stmt->fetchColumn() ?: null;
+            } else {
+                $_SESSION['photo'] = null;
+            }
+        } catch (Exception $e) {
+            $_SESSION['photo'] = null;
+        }
+    }
+
     return [
         'id' => $_SESSION['user_id'],
         'username' => $_SESSION['username'],
@@ -125,7 +148,8 @@ function current_user() {
         'status' => $_SESSION['status'] ?? 'approved',
         'name' => $_SESSION['full_name'] ?? 'User',
         'profile_id' => $_SESSION['profile_id'] ?? null,
-        'code' => $_SESSION['code'] ?? ''
+        'code' => $_SESSION['code'] ?? '',
+        'photo' => $_SESSION['photo'] ?? null
     ];
 }
 

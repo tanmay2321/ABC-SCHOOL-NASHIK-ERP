@@ -91,6 +91,12 @@ if ($role === 'admin') {
             'active' => strpos($current_uri, '/admin/assignments.php') !== false
         ],
         [
+            'title' => 'Study Notes & Materials',
+            'url' => '/teacher/notes.php',
+            'icon' => 'fa-solid fa-file-pdf',
+            'active' => strpos($current_uri, '/teacher/notes.php') !== false
+        ],
+        [
             'title' => 'Leave Approvals',
             'url' => '/admin/leaves.php',
             'icon' => 'fa-solid fa-envelope-open-text',
@@ -135,6 +141,12 @@ if ($role === 'admin') {
             'url' => '/admin/assignments.php',
             'icon' => 'fa-solid fa-book-bookmark',
             'active' => strpos($current_uri, '/admin/assignments.php') !== false
+        ],
+        [
+            'title' => 'Study Notes & Materials',
+            'url' => '/teacher/notes.php',
+            'icon' => 'fa-solid fa-file-pdf',
+            'active' => strpos($current_uri, '/teacher/notes.php') !== false
         ],
         [
             'title' => 'Curriculum & Subjects',
@@ -212,6 +224,12 @@ if ($role === 'admin') {
             'active' => strpos($current_uri, '/admin/assignments.php') !== false
         ],
         [
+            'title' => 'Study Notes & Materials',
+            'url' => '/teacher/notes.php',
+            'icon' => 'fa-solid fa-file-pdf',
+            'active' => strpos($current_uri, '/teacher/notes.php') !== false
+        ],
+        [
             'title' => 'Curriculum & Subjects',
             'url' => '/admin/subjects.php',
             'icon' => 'fa-solid fa-book-open',
@@ -275,6 +293,12 @@ if ($role === 'admin') {
             'active' => strpos($current_uri, '/teacher/assignments.php') !== false
         ],
         [
+            'title' => 'Study Notes & Materials',
+            'url' => '/teacher/notes.php',
+            'icon' => 'fa-solid fa-file-pdf',
+            'active' => strpos($current_uri, '/teacher/notes.php') !== false
+        ],
+        [
             'title' => 'Teaching Timetable',
             'url' => '/teacher/timetable.php',
             'icon' => 'fa-solid fa-calendar-week',
@@ -291,6 +315,12 @@ if ($role === 'admin') {
             'url' => '/teacher/notices.php',
             'icon' => 'fa-solid fa-bullhorn',
             'active' => strpos($current_uri, '/teacher/notices.php') !== false
+        ],
+        [
+            'title' => 'My Profile & Identity',
+            'url' => '/teacher/profile.php',
+            'icon' => 'fa-solid fa-id-badge',
+            'active' => strpos($current_uri, '/teacher/profile.php') !== false
         ]
     ];
 } elseif ($role === 'student') {
@@ -300,6 +330,12 @@ if ($role === 'admin') {
             'url' => '/student/index.php',
             'icon' => 'fa-solid fa-house-chimney-user',
             'active' => strpos($current_uri, '/student/index.php') !== false || $current_uri === '/student/'
+        ],
+        [
+            'title' => 'LMS Courseware & Subjects',
+            'url' => '/student/lms.php',
+            'icon' => 'fa-solid fa-graduation-cap',
+            'active' => strpos($current_uri, '/student/lms.php') !== false || strpos($current_uri, '/student/subject.php') !== false
         ],
         [
             'title' => 'Fee Portal & Receipts',
@@ -342,6 +378,12 @@ if ($role === 'admin') {
             'url' => '/student/notices.php',
             'icon' => 'fa-solid fa-newspaper',
             'active' => strpos($current_uri, '/student/notices.php') !== false
+        ],
+        [
+            'title' => 'My Profile & ID Card',
+            'url' => '/student/profile.php',
+            'icon' => 'fa-solid fa-id-card',
+            'active' => strpos($current_uri, '/student/profile.php') !== false
         ]
     ];
 }
