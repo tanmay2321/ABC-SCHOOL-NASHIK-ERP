@@ -432,6 +432,15 @@ if ($role === 'admin') {
                 </div>
                 <p class="text-[11px] text-slate-400">Secure session established with <?= htmlspecialchars($school_name) ?> secure gateway.</p>
             </div>
+            
+            <!-- Mobile App Direct Link -->
+            <a href="/app/" target="_blank" class="mt-3 flex items-center justify-between px-3 py-2.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-600/10 border border-amber-500/40 text-amber-300 text-xs font-bold hover:bg-amber-500/30 transition group">
+                <div class="flex items-center space-x-2.5">
+                    <i class="fa-solid fa-mobile-screen-button text-amber-400 text-sm group-hover:scale-110 transition-transform"></i>
+                    <span>Flutter Mobile App</span>
+                </div>
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-400 text-slate-900 font-extrabold uppercase">Live App</span>
+            </a>
         </div>
     </div>
 

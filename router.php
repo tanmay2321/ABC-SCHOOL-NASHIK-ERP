@@ -49,11 +49,17 @@ if (strpos($uri, '/uploads/') === 0 && $extension === 'php') {
     exit;
 }
 
-// 4. Handle directory requests (e.g. / or /admin/ or /teacher/)
+// 4. Handle directory requests (e.g. / or /admin/ or /teacher/ or /app/)
 if (is_dir($requestedFile)) {
     $indexFile = rtrim($requestedFile, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'index.php';
     if (file_exists($indexFile)) {
         require $indexFile;
+        return true;
+    }
+    $indexHtml = rtrim($requestedFile, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'index.html';
+    if (file_exists($indexHtml)) {
+        header('Content-Type: text/html; charset=utf-8');
+        readfile($indexHtml);
         return true;
     }
 }
