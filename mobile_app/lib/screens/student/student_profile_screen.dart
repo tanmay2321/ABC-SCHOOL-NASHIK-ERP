@@ -3,8 +3,123 @@ import '../../theme/app_theme.dart';
 import '../../services/api_service.dart';
 import '../login_screen.dart';
 
-class StudentProfileScreen extends StatelessWidget {
+class StudentProfileScreen extends StatefulWidget {
   const StudentProfileScreen({super.key});
+
+  @override
+  State<StudentProfileScreen> createState() => _StudentProfileScreenState();
+}
+
+class _StudentProfileScreenState extends State<StudentProfileScreen> {
+  bool _isSaving = false;
+
+  void _showEditDialog() {
+    final user = ApiService().currentUser;
+    final phoneController = TextEditingController(text: user?.phone ?? '');
+    final addressController = TextEditingController(text: user?.address ?? '');
+    final bloodController = TextEditingController(text: user?.bloodGroup ?? 'O+');
+    final passController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: const Row(
+            children: [
+              Icon(Icons.edit_rounded, color: AppTheme.navyDark, size: 22),
+              SizedBox(width: 8),
+              Text('Edit Student Contact', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Emergency Phone',
+                    prefixIcon: Icon(Icons.phone_rounded),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: addressController,
+                  decoration: const InputDecoration(
+                    labelText: 'Residential Address',
+                    prefixIcon: Icon(Icons.home_rounded),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: bloodController,
+                  decoration: const InputDecoration(
+                    labelText: 'Blood Group',
+                    prefixIcon: Icon(Icons.bloodtype_rounded),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: passController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'New Password (Optional)',
+                    hintText: 'Leave empty to keep unchanged',
+                    prefixIcon: Icon(Icons.lock_rounded),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel', style: TextStyle(color: AppTheme.slate500)),
+            ),
+            ElevatedButton(
+              onPressed: _isSaving
+                  ? null
+                  : () async {
+                      setDialogState(() => _isSaving = true);
+                      final payload = <String, dynamic>{
+                        'phone': phoneController.text.trim(),
+                        'address': addressController.text.trim(),
+                        'blood_group': bloodController.text.trim(),
+                      };
+                      if (passController.text.trim().isNotEmpty) {
+                        payload['new_password'] = passController.text.trim();
+                      }
+
+                      final ok = await ApiService().updateProfile(payload);
+                      setDialogState(() => _isSaving = false);
+                      if (ctx.mounted) Navigator.pop(ctx);
+
+                      if (mounted) {
+                        setState(() {});
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(ok ? 'Profile updated successfully!' : 'Failed to update profile.'),
+                            backgroundColor: ok ? AppTheme.emerald : AppTheme.rose,
+                          ),
+                        );
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.navyDark,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: _isSaving
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text('Save Changes'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,10 +129,16 @@ class StudentProfileScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppTheme.bgLight,
       appBar: AppBar(
-        title: const Text('My Identity & Profile'),
+        title: const Text('Student Identity & Profile'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.edit_rounded, color: Colors.white),
+            tooltip: 'Edit Profile',
+            onPressed: _showEditDialog,
+          ),
+          IconButton(
             icon: const Icon(Icons.logout_rounded, color: AppTheme.roseLight),
+            tooltip: 'Logout',
             onPressed: () async {
               await ApiService().logout();
               if (context.mounted) {
@@ -37,44 +158,74 @@ class StudentProfileScreen extends StatelessWidget {
           children: [
             // Avatar Header Card
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: AppTheme.slate100),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.navyDark.withValues(alpha: 0.05),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
               child: Column(
                 children: [
-                  Container(
-                    width: 84,
-                    height: 84,
-                    decoration: BoxDecoration(
-                      gradient: AppTheme.navyHeroGradient,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppTheme.gold, width: 2.5),
-                    ),
-                    child: Center(
-                      child: Text(
-                        (user?.fullName.isNotEmpty ?? false) ? user!.fullName[0].toUpperCase() : 'S',
-                        style: const TextStyle(color: AppTheme.gold, fontSize: 32, fontWeight: FontWeight.bold),
+                  Stack(
+                    alignment: Alignment.bottomRight,
+                    children: [
+                      Container(
+                        width: 90,
+                        height: 90,
+                        decoration: BoxDecoration(
+                          gradient: AppTheme.navyHeroGradient,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppTheme.gold, width: 3),
+                        ),
+                        child: Center(
+                          child: Text(
+                            (user?.fullName.isNotEmpty ?? false) ? user!.fullName[0].toUpperCase() : 'S',
+                            style: const TextStyle(color: AppTheme.gold, fontSize: 36, fontWeight: FontWeight.bold),
+                          ),
+                        ),
                       ),
+                      Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: const BoxDecoration(
+                          color: AppTheme.emerald,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.check, color: Colors.white, size: 14),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    user?.fullName ?? 'Student',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: AppTheme.slate900, fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: AppTheme.indigoLight,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      '${user?.studentClass ?? "Class 10-A"} • Roll No: #${user?.rollNo ?? "1"}',
+                      style: const TextStyle(color: AppTheme.navyMedium, fontSize: 12, fontWeight: FontWeight.bold),
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Text(
-                    user?.fullName ?? 'Student',
-                    style: const TextStyle(color: AppTheme.slate900, fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppTheme.indigoLight,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '${user?.studentClass ?? "Class 10"} • Roll No: ${user?.rollNo ?? "101"}',
-                      style: const TextStyle(color: AppTheme.navyMedium, fontSize: 11, fontWeight: FontWeight.bold),
+                  OutlinedButton.icon(
+                    onPressed: _showEditDialog,
+                    icon: const Icon(Icons.edit_note_rounded, size: 18, color: AppTheme.navyDark),
+                    label: const Text('Edit Details', style: TextStyle(color: AppTheme.navyDark, fontWeight: FontWeight.bold, fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),
                   ),
                 ],
@@ -85,7 +236,7 @@ class StudentProfileScreen extends StatelessWidget {
 
             // Profile Fields
             Container(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(24),
@@ -94,14 +245,23 @@ class StudentProfileScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Academic & Personal Records', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  const SizedBox(height: 14),
-                  _field('Student Code', user?.userCode.isNotEmpty == true ? user!.userCode : 'STU-2026-1025'),
-                  _field('Email Address', user?.email ?? 'student@edu.in'),
+                  const Row(
+                    children: [
+                      Icon(Icons.school_rounded, color: AppTheme.navyDark, size: 20),
+                      SizedBox(width: 8),
+                      Text('Academic & Personal Details', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.slate900)),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _field('Student Roll No', '#${user?.rollNo ?? "1"}'),
+                  _field('Class & Division', user?.studentClass ?? 'Class 10-A'),
+                  _field('Student Code', user?.userCode.isNotEmpty == true ? user!.userCode : 'STU-BWIS-2026'),
+                  _field('Admission Number', user?.profile['admission_number']?.toString() ?? 'ADM-2026-084'),
+                  _field('Official Email', user?.email ?? 'student@edu.in'),
                   _field('Blood Group', user?.bloodGroup ?? 'O+'),
-                  _field('Guardian Name', user?.guardianName ?? 'Rajesh Sharma'),
-                  _field('Emergency Phone', user?.phone ?? '+91 98231 65432'),
-                  _field('Residential Address', user?.address ?? 'Old Nalwa Road, Nandurbar'),
+                  _field('Guardian Name', user?.guardianName ?? 'Parent/Guardian'),
+                  _field('Emergency Contact', user?.phone ?? '+91 98231 65432'),
+                  _field('Residential Address', user?.address ?? 'Nandurbar, Maharashtra'),
                 ],
               ),
             ),
@@ -110,7 +270,7 @@ class StudentProfileScreen extends StatelessWidget {
 
             // School Contact Info
             Container(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(24),
@@ -119,7 +279,13 @@ class StudentProfileScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('School Information', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  const Row(
+                    children: [
+                      Icon(Icons.account_balance_rounded, color: AppTheme.navyDark, size: 20),
+                      SizedBox(width: 8),
+                      Text('Institution & Campus', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.slate900)),
+                    ],
+                  ),
                   const SizedBox(height: 12),
                   Text(school?.name ?? 'BELLWETHER INTERNATIONAL SCHOOL NANDURBAR', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.navyDark)),
                   const SizedBox(height: 4),

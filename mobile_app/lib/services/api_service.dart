@@ -304,6 +304,8 @@ class ApiService {
     required String studentClass,
     required String subject,
     required String description,
+    String? filePath,
+    String? fileName,
   }) async {
     final response = await http.post(
       Uri.parse('$_baseUrl/notes.php'),
@@ -313,6 +315,8 @@ class ApiService {
         'class': studentClass,
         'subject': subject,
         'description': description,
+        'file_path': filePath ?? '/uploads/notes/${title.replaceAll(" ", "_").toLowerCase()}_notes.pdf',
+        'file_name': fileName ?? '${title}_reference_material.pdf',
       }),
     ).timeout(const Duration(seconds: 10));
 
@@ -339,7 +343,7 @@ class ApiService {
     throw Exception('Failed to load assignments: HTTP ${response.statusCode}');
   }
 
-  /// Create Assignment (Teacher - Saves to database)
+  /// Create Assignment (Teacher - Saves to database with document & solution)
   Future<bool> createAssignment({
     required String title,
     required String studentClass,
@@ -347,6 +351,10 @@ class ApiService {
     required String description,
     required String dueDate,
     double? maxMarks,
+    String? attachmentPath,
+    String? solutionPath,
+    String? solutionNotes,
+    bool releaseSolution = false,
   }) async {
     final response = await http.post(
       Uri.parse('$_baseUrl/assignments.php'),
@@ -359,6 +367,10 @@ class ApiService {
         'description': description,
         'due_date': dueDate,
         'max_marks': maxMarks ?? 100,
+        if (attachmentPath != null && attachmentPath.isNotEmpty) 'attachment_path': attachmentPath,
+        if (solutionPath != null && solutionPath.isNotEmpty) 'solution_path': solutionPath,
+        if (solutionNotes != null && solutionNotes.isNotEmpty) 'solution_notes': solutionNotes,
+        'solution_released': releaseSolution ? 1 : 0,
       }),
     ).timeout(const Duration(seconds: 10));
 
@@ -844,5 +856,123 @@ class ApiService {
     ).timeout(const Duration(seconds: 10));
 
     return response.statusCode == 200;
+  }
+
+  /// Fetch In-App Notifications
+  Future<Map<String, dynamic>> fetchNotifications() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/notifications.php'),
+        headers: _headers(),
+      ).timeout(const Duration(seconds: 6));
+
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        if (body['success'] == true) return body['data'];
+      }
+    } catch (_) {}
+    return {'unread_count': 0, 'total': 0, 'notifications': []};
+  }
+
+  /// Mark Notification(s) as Read
+  Future<bool> markNotificationRead([int? id]) async {
+    try {
+      final payload = <String, dynamic>{'action': 'mark_read'};
+      if (id != null) payload['id'] = id;
+
+      final response = await http.post(
+        Uri.parse('$_baseUrl/notifications.php'),
+        headers: _headers(),
+        body: jsonEncode(payload),
+      ).timeout(const Duration(seconds: 6));
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Fetch Submissions for an Assignment (Teacher Grading)
+  Future<List<dynamic>> fetchAssignmentSubmissions(int assignmentId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/assignments.php?assignment_id=$assignmentId'),
+        headers: _headers(),
+      ).timeout(const Duration(seconds: 8));
+
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        if (body['success'] == true) return body['data']['submissions'] ?? [];
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  /// Grade a Student Submission (Sends Alert Notification to Student)
+  Future<bool> gradeSubmission({
+    required int submissionId,
+    required double marks,
+    required String feedback,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/assignments.php'),
+      headers: _headers(),
+      body: jsonEncode({
+        'action': 'grade',
+        'submission_id': submissionId,
+        'marks_obtained': marks,
+        'teacher_feedback': feedback,
+      }),
+    ).timeout(const Duration(seconds: 10));
+
+    return response.statusCode == 200;
+  }
+
+  /// Upload / Update Official Assignment Solution (Notifies Students)
+  Future<bool> uploadAssignmentSolution({
+    required int assignmentId,
+    required String solutionNotes,
+    String? solutionPath,
+    bool releaseSolution = true,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/assignments.php'),
+      headers: _headers(),
+      body: jsonEncode({
+        'action': 'upload_solution',
+        'assignment_id': assignmentId,
+        'solution_notes': solutionNotes,
+        'solution_path': solutionPath ?? '/uploads/solutions/sol_$assignmentId.pdf',
+        'solution_released': releaseSolution ? 1 : 0,
+      }),
+    ).timeout(const Duration(seconds: 10));
+
+    return response.statusCode == 200;
+  }
+
+  /// Update Profile Details (Student or Teacher)
+  Future<bool> updateProfile(Map<String, dynamic> data) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/profile.php'),
+      headers: _headers(),
+      body: jsonEncode(data),
+    ).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      // Refresh current user session
+      try {
+        final pRes = await http.get(Uri.parse('$_baseUrl/profile.php'), headers: _headers());
+        if (pRes.statusCode == 200) {
+          final pBody = jsonDecode(pRes.body);
+          if (pBody['success'] == true) {
+            _currentUser = UserModel.fromJson(pBody['data']['user'], pBody['data']['profile'] ?? {});
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('bwis_user_json', jsonEncode(pBody['data']['user']));
+            await prefs.setString('bwis_profile_json', jsonEncode(pBody['data']['profile'] ?? {}));
+          }
+        }
+      } catch (_) {}
+      return true;
+    }
+    return false;
   }
 }

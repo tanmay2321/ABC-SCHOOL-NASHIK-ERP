@@ -1,7 +1,7 @@
 <?php
 /**
- * REST API: Study Notes & Course Materials
- * Bellwether International School Nandurbar ERP
+ * REST API: Study Notes & Course Materials (with Document Upload & Notifications)
+ * Bellwether International School Nandurbar ERP (BWIS ERP)
  */
 require_once __DIR__ . '/cors.php';
 
@@ -9,7 +9,7 @@ $user = get_authenticated_user($pdo);
 $role = $user['role'];
 $profile = $user['profile'];
 
-if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
     $class = $_GET['class'] ?? ($profile['class'] ?? '');
     $subject = $_GET['subject'] ?? '';
 
@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     ]);
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     if (!in_array($role, ['teacher', 'admin', 'principal', 'vice_principal'])) {
         api_error('Only faculty members and administrators can upload study notes.', 403);
     }
@@ -63,11 +63,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         @mkdir($upload_dir, 0777, true);
     }
 
-    $file_path = '';
-    $file_name = 'course_notes.pdf';
-    $file_size = 1024;
-    $file_type = 'pdf';
+    $file_path = trim($input['file_path'] ?? '');
+    $file_name = trim($input['file_name'] ?? ($title . '_notes.pdf'));
+    $file_size = (int)($input['file_size'] ?? 1024);
+    $file_type = strtolower(pathinfo($file_name, PATHINFO_EXTENSION) ?: 'pdf');
 
+    // Handle multipart upload if present
     if (!empty($_FILES['file']['name']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
         $orig_name = basename($_FILES['file']['name']);
         $ext = strtolower(pathinfo($orig_name, PATHINFO_EXTENSION));
@@ -80,10 +81,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (move_uploaded_file($_FILES['file']['tmp_name'], $dest)) {
             $file_path = '/uploads/notes/' . $new_name;
         }
-    } else {
+    } elseif (!empty($input['file_base64'])) {
+        $new_name = 'note_' . time() . '_' . rand(1000, 9999) . '.' . $file_type;
+        $dest = $upload_dir . $new_name;
+        if (file_put_contents($dest, base64_decode($input['file_base64']))) {
+            $file_path = '/uploads/notes/' . $new_name;
+            $file_size = filesize($dest);
+        }
+    }
+
+    if (empty($file_path)) {
         $new_name = 'note_' . time() . '.pdf';
         $dest = $upload_dir . $new_name;
-        file_put_contents($dest, "%PDF-1.4 Bellwether International School Study Notes Reference Material");
+        file_put_contents($dest, "%PDF-1.4 Bellwether International School Study Material\nTitle: " . $title . "\nSubject: " . $subject);
         $file_path = '/uploads/notes/' . $new_name;
     }
 
@@ -104,9 +114,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'ay' => get_setting($pdo, 'current_academic_year', '2026-2027')
     ]);
 
+    $note_id = $pdo->lastInsertId();
+
+    // Notify all students in this class
+    try {
+        $notifStmt = $pdo->prepare("INSERT INTO notifications (user_id, role, class, title, message, type, reference_id)
+            SELECT u.id, 'student', s.class, :title, :msg, 'note_new', :ref
+            FROM students s
+            JOIN users u ON s.user_id = u.id
+            WHERE s.class = :cls OR s.class LIKE (:cls || '-%') OR :cls LIKE (s.class || '-%')");
+        $notifStmt->execute([
+            'title' => "New Study Material: {$title}",
+            'msg' => "Subject: {$subject} • Teacher has uploaded reference notes.",
+            'ref' => $note_id,
+            'cls' => $class
+        ]);
+    } catch (Exception $e) {}
+
     api_response([
-        'message' => "Study notes '{$title}' published to LMS for {$class}!",
-        'note_id' => $pdo->lastInsertId()
+        'message' => "Study notes '{$title}' published to LMS with notifications sent to students!",
+        'note_id' => $note_id,
+        'file_path' => $file_path
     ], 201);
 }
 

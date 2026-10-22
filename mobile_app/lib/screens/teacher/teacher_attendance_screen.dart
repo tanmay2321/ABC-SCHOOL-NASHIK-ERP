@@ -15,9 +15,17 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
   String _selectedClass = 'Class 10-A';
-  final String _date = DateTime.now().toString().split(' ')[0];
+  DateTime _selectedDate = DateTime.now();
 
   List<String> _classList = ApiService.standardClasses;
+
+  String get _formattedDate =>
+      '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
+
+  String get _displayDate {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${_selectedDate.day} ${months[_selectedDate.month - 1]} ${_selectedDate.year}';
+  }
 
   @override
   void initState() {
@@ -46,7 +54,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
   Future<void> _loadClassRoster() async {
     setState(() => _isLoading = true);
     try {
-      final res = await ApiService().fetchAttendance(studentClass: _selectedClass, date: _date);
+      final res = await ApiService().fetchAttendance(studentClass: _selectedClass, date: _formattedDate);
       if (mounted) {
         final list = res['students'] as List<dynamic>? ?? [];
         setState(() {
@@ -61,6 +69,32 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
           SnackBar(content: Text('Error loading roster: $e'), backgroundColor: AppTheme.rose),
         );
       }
+    }
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2024),
+      lastDate: DateTime.now().add(const Duration(days: 1)),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppTheme.navyDark,
+              onPrimary: Colors.white,
+              onSurface: AppTheme.slate900,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null && picked != _selectedDate) {
+      setState(() => _selectedDate = picked);
+      _loadClassRoster();
     }
   }
 
@@ -89,7 +123,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
 
       final success = await ApiService().submitAttendance(
         studentClass: _selectedClass,
-        date: _date,
+        date: _formattedDate,
         attendance: payload,
       );
 
@@ -99,7 +133,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Attendance for $_selectedClass saved & synced to school database!'),
+            content: Text('Attendance for $_selectedClass on $_displayDate saved & synced!'),
             backgroundColor: AppTheme.emerald,
           ),
         );
@@ -125,7 +159,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('DAILY ATTENDANCE', style: TextStyle(color: AppTheme.gold, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+            const Text('DATE-WISE ATTENDANCE', style: TextStyle(color: AppTheme.gold, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
             Text('Roll Call: $_selectedClass', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
           ],
         ),
@@ -139,15 +173,71 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
       ),
       body: Column(
         children: [
-          // Top Responsive Filter & Actions Bar
+          // Date Selector Bar (Teacher picks any date!)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(bottom: BorderSide(color: AppTheme.slate200)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: _pickDate,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.navyDark.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.navyDark.withValues(alpha: 0.2)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.calendar_month_rounded, color: AppTheme.navyDark, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Attendance Date (Tap to change)', style: TextStyle(color: AppTheme.slate500, fontSize: 10, fontWeight: FontWeight.w600)),
+                                Text(_displayDate, style: const TextStyle(color: AppTheme.navyDark, fontSize: 13, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.arrow_drop_down, color: AppTheme.navyDark),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: () {
+                    setState(() => _selectedDate = DateTime.now());
+                    _loadClassRoster();
+                  },
+                  style: TextButton.styleFrom(
+                    backgroundColor: _formattedDate == DateTime.now().toString().split(' ')[0] ? AppTheme.goldLight : Colors.transparent,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  ),
+                  child: const Text('Today', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.navyDark)),
+                ),
+              ],
+            ),
+          ),
+
+          // Division & Bulk Action Bar
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  const Text('Division: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  const Text('Class: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                   const SizedBox(width: 6),
                   DropdownButton<String>(
                     value: _classList.contains(_selectedClass) ? _selectedClass : _classList[0],
@@ -321,7 +411,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
               child: SizedBox(
                 width: double.infinity,
                 child: CustomButton(
-                  label: _isSaving ? 'Submitting to Database...' : 'Save & Submit Attendance',
+                  label: _isSaving ? 'Submitting to Database...' : 'Save & Submit Attendance for $_displayDate',
                   icon: Icons.cloud_upload_rounded,
                   isLoading: _isSaving,
                   onPressed: _saveAttendance,

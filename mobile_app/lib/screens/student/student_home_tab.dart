@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../../services/api_service.dart';
-import '../../widgets/bento_card.dart';
-import '../../widgets/digital_id_card.dart';
-import '../../widgets/section_header.dart';
+import '../../widgets/notification_modal.dart';
 import 'student_id_card_screen.dart';
 import 'student_lms_screen.dart';
 import 'student_attendance_screen.dart';
 import 'student_fees_screen.dart';
 import 'student_marks_screen.dart';
 import 'student_timetable_screen.dart';
-import 'student_transport_screen.dart';
 import 'student_leave_screen.dart';
+import 'student_profile_screen.dart';
 import '../notices_screen.dart';
 
 class StudentHomeTab extends StatefulWidget {
@@ -23,12 +21,14 @@ class StudentHomeTab extends StatefulWidget {
 
 class _StudentHomeTabState extends State<StudentHomeTab> {
   Map<String, dynamic>? _dashboardData;
+  int _unreadNotifs = 0;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _loadDashboard();
+    _loadNotificationsCount();
   }
 
   Future<void> _loadDashboard() async {
@@ -41,12 +41,19 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
     }
   }
 
+  Future<void> _loadNotificationsCount() async {
+    final res = await ApiService().fetchNotifications();
+    if (mounted) {
+      setState(() {
+        _unreadNotifs = res['unread_count'] as int? ?? 0;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = ApiService().currentUser;
     final metrics = _dashboardData?['student_metrics'] ?? {};
-    final schedule = _dashboardData?['today_schedule'] as List<dynamic>? ?? [];
-    final notices = _dashboardData?['recent_notices'] as List<dynamic>? ?? [];
 
     final double attendancePct = (metrics['attendance_percentage'] is num)
         ? (metrics['attendance_percentage'] as num).toDouble()
@@ -70,9 +77,9 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
                 letterSpacing: 1.2,
               ),
             ),
-            Text(
-              'Welcome, ${user?.fullName ?? "Student"}',
-              style: const TextStyle(
+            const Text(
+              'BWIS Smart ERP',
+              style: TextStyle(
                 color: Colors.white,
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -81,353 +88,382 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
           ],
         ),
         actions: [
+          // Notification Bell with Unread Badge
           IconButton(
-            icon: const Icon(Icons.notifications_none_rounded, color: Colors.white),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NoticesScreen())),
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.notifications_rounded, color: Colors.white, size: 24),
+                if (_unreadNotifs > 0)
+                  Positioned(
+                    right: -2,
+                    top: -2,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: AppTheme.rose,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        '$_unreadNotifs',
+                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            onPressed: () {
+              NotificationModal.show(context, onDismiss: () {
+                _loadNotificationsCount();
+              });
+            },
           ),
-          const SizedBox(width: 8),
+          // Profile Shortcut Avatar
+          InkWell(
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentProfileScreen())),
+            borderRadius: BorderRadius.circular(20),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: CircleAvatar(
+                radius: 17,
+                backgroundColor: AppTheme.gold,
+                child: Text(
+                  (user?.fullName.isNotEmpty ?? false) ? user!.fullName[0].toUpperCase() : 'S',
+                  style: const TextStyle(color: AppTheme.navyDark, fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppTheme.navyDark))
           : RefreshIndicator(
-              onRefresh: _loadDashboard,
+              onRefresh: () async {
+                await _loadDashboard();
+                await _loadNotificationsCount();
+              },
               color: AppTheme.navyDark,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Digital Smart ID Card
-                    if (user != null) ...[
-                      DigitalIdCard(user: user),
-                      const SizedBox(height: 20),
-                    ],
-
-                    // Top Bento Metrics (Attendance Gauge & Fee Alert)
-                    Row(
-                      children: [
-                        // Attendance Bento Card
-                        Expanded(
-                          child: BentoCard(
-                            title: 'Attendance',
-                            subtitle: 'Term Overview',
-                            icon: Icons.pie_chart_rounded,
-                            iconColor: AppTheme.emerald,
-                            iconBg: AppTheme.emeraldLight,
-                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentAttendanceScreen())),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                    // PROFILE SECTION ON DASHBOARD HEADER (Requested!)
+                    InkWell(
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentProfileScreen())),
+                      borderRadius: BorderRadius.circular(24),
+                      child: Container(
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          gradient: AppTheme.navyHeroGradient,
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.navyDark.withValues(alpha: 0.25),
+                              blurRadius: 18,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            // Profile Picture with Online Status Ring
+                            Stack(
+                              alignment: Alignment.bottomRight,
                               children: [
-                                Row(
-                                  children: [
-                                    Text(
-                                      '$attendancePct%',
-                                      style: const TextStyle(
-                                        color: AppTheme.slate900,
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.w900,
-                                      ),
+                                Container(
+                                  width: 64,
+                                  height: 64,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: AppTheme.gold, width: 2.5),
+                                    color: AppTheme.navyMedium,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      (user?.fullName.isNotEmpty ?? false) ? user!.fullName[0].toUpperCase() : 'S',
+                                      style: const TextStyle(color: AppTheme.gold, fontSize: 26, fontWeight: FontWeight.bold),
                                     ),
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.emeraldLight,
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: const Text('GOOD', style: TextStyle(color: AppTheme.emerald, fontSize: 9, fontWeight: FontWeight.bold)),
-                                    ),
-                                  ],
+                                  ),
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Present: ${metrics['attendance_present'] ?? 23} / ${metrics['attendance_total'] ?? 25} Days',
-                                  style: const TextStyle(color: AppTheme.slate600, fontSize: 11),
+                                Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: const BoxDecoration(
+                                    color: AppTheme.emerald,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.check, size: 10, color: Colors.white),
                                 ),
                               ],
+                            ),
+                            const SizedBox(width: 14),
+
+                            // Student Name, Class, Division, Roll No Header Info
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          user?.fullName ?? 'Student',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const Icon(Icons.chevron_right_rounded, color: Colors.white60, size: 20),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 4,
+                                    children: [
+                                      // Class & Division Badge
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.gold.withValues(alpha: 0.2),
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: AppTheme.gold.withValues(alpha: 0.5)),
+                                        ),
+                                        child: Text(
+                                          user?.studentClass ?? 'Class 10-A',
+                                          style: const TextStyle(color: AppTheme.goldLight, fontSize: 10, fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                      // Roll No Badge
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          'Roll #${user?.rollNo ?? "1"}',
+                                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                      // Student Code
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          user?.userCode.isNotEmpty == true ? user!.userCode : 'STU-BWIS',
+                                          style: const TextStyle(color: Colors.white70, fontSize: 10),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Quick Glance Mini Stats (Attendance & Fees)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentAttendanceScreen())),
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: AppTheme.slate100),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(color: AppTheme.emeraldLight, borderRadius: BorderRadius.circular(10)),
+                                    child: const Icon(Icons.check_circle_rounded, color: AppTheme.emerald, size: 20),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Attendance', style: TextStyle(color: AppTheme.slate400, fontSize: 10, fontWeight: FontWeight.bold)),
+                                        Text('$attendancePct%', style: const TextStyle(color: AppTheme.slate900, fontSize: 16, fontWeight: FontWeight.bold)),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
                         const SizedBox(width: 12),
-
-                        // Fee Status Bento Card
                         Expanded(
-                          child: BentoCard(
-                            title: 'Fee Dues',
-                            subtitle: 'Term 1 Balance',
-                            icon: Icons.account_balance_wallet_rounded,
-                            iconColor: feeDue > 0 ? AppTheme.rose : AppTheme.emerald,
-                            iconBg: feeDue > 0 ? AppTheme.roseLight : AppTheme.emeraldLight,
+                          child: InkWell(
                             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentFeesScreen())),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '₹${feeDue.toStringAsFixed(0)}',
-                                  style: TextStyle(
-                                    color: feeDue > 0 ? AppTheme.rose : AppTheme.emerald,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Text(
-                                      feeDue > 0 ? 'Pay Online' : 'All Clear',
-                                      style: TextStyle(
-                                        color: feeDue > 0 ? AppTheme.rose : AppTheme.emerald,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Icon(
-                                      Icons.arrow_forward_rounded,
-                                      size: 12,
-                                      color: feeDue > 0 ? AppTheme.rose : AppTheme.emerald,
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Quick Actions Grid
-                    const SectionHeader(title: 'Quick Actions & Services'),
-                    GridView.count(
-                      crossAxisCount: 4,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      mainAxisSpacing: 12,
-                      crossAxisSpacing: 10,
-                      childAspectRatio: 0.74,
-                      children: [
-                        _quickAction(
-                          Icons.badge_rounded,
-                          'Smart ID',
-                          AppTheme.navyMedium,
-                          AppTheme.indigoLight,
-                          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentIdCardScreen())),
-                        ),
-                        _quickAction(
-                          Icons.auto_stories_rounded,
-                          'LMS Notes',
-                          AppTheme.cyan,
-                          AppTheme.cyanLight,
-                          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentLmsScreen())),
-                        ),
-                        _quickAction(
-                          Icons.assignment_rounded,
-                          'Homework',
-                          AppTheme.amber,
-                          AppTheme.amberLight,
-                          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentLmsScreen())),
-                        ),
-                        _quickAction(
-                          Icons.leaderboard_rounded,
-                          'Marksheet',
-                          AppTheme.purple,
-                          AppTheme.purpleLight,
-                          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentMarksScreen())),
-                        ),
-                        _quickAction(
-                          Icons.calendar_month_rounded,
-                          'Timetable',
-                          AppTheme.navyMedium,
-                          AppTheme.indigoLight,
-                          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentTimetableScreen())),
-                        ),
-                        _quickAction(
-                          Icons.directions_bus_rounded,
-                          'Bus Tracker',
-                          const Color(0xFFD97706),
-                          const Color(0xFFFEF3C7),
-                          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentTransportScreen())),
-                        ),
-                        _quickAction(
-                          Icons.time_to_leave_rounded,
-                          'Apply Leave',
-                          AppTheme.rose,
-                          AppTheme.roseLight,
-                          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentLeaveScreen())),
-                        ),
-                        _quickAction(
-                          Icons.campaign_rounded,
-                          'Notices',
-                          AppTheme.emerald,
-                          AppTheme.emeraldLight,
-                          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NoticesScreen())),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Today's Class Timetable Schedule
-                    SectionHeader(
-                      title: 'Today’s Period Schedule (${DateTime.now().weekday == 7 ? "Sunday" : "Active"})',
-                      actionText: 'View Week',
-                      onAction: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentTimetableScreen())),
-                    ),
-                    if (schedule.isEmpty)
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppTheme.slate100),
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(Icons.info_outline, color: AppTheme.slate400),
-                            SizedBox(width: 10),
-                            Text('No active classes scheduled today.', style: TextStyle(color: AppTheme.slate600, fontSize: 13)),
-                          ],
-                        ),
-                      )
-                    else
-                      Column(
-                        children: schedule.take(4).map((p) {
-                          final isFirst = p['period_number'] == 1;
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 10),
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(
-                                color: isFirst ? AppTheme.navyMedium : AppTheme.slate100,
-                                width: isFirst ? 1.5 : 1,
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: AppTheme.slate100),
                               ),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 40,
-                                  height: 40,
-                                  decoration: BoxDecoration(
-                                    color: isFirst ? AppTheme.navyDark : AppTheme.slate50,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      'P${p['period_number']}',
-                                      style: TextStyle(
-                                        color: isFirst ? AppTheme.gold : AppTheme.slate700,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        p['subject'] ?? '',
-                                        style: const TextStyle(
-                                          color: AppTheme.slate900,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        '${p['teacher_name']} • ${p['room_no'] ?? "Room 101"}',
-                                        style: const TextStyle(color: AppTheme.slate400, fontSize: 11),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Text(
-                                  p['time_slot'] ?? '',
-                                  style: const TextStyle(
-                                    color: AppTheme.navyMedium,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ),
-
-                    const SizedBox(height: 20),
-
-                    // Recent School Circulars & Notices
-                    SectionHeader(
-                      title: 'School Circulars & Digital Diary',
-                      actionText: 'All Notices',
-                      onAction: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NoticesScreen())),
-                    ),
-                    if (notices.isNotEmpty)
-                      ...notices.take(2).map((n) {
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: AppTheme.slate100),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              child: Row(
                                 children: [
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.indigoLight,
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      n['category'] ?? 'Notice',
-                                      style: const TextStyle(
-                                        color: AppTheme.navyMedium,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(color: AppTheme.amberLight, borderRadius: BorderRadius.circular(10)),
+                                    child: const Icon(Icons.account_balance_wallet_rounded, color: AppTheme.amber, size: 20),
                                   ),
-                                  Text(
-                                    n['created_at'] != null ? n['created_at'].toString().split(' ')[0] : 'Today',
-                                    style: const TextStyle(color: AppTheme.slate400, fontSize: 11),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Fee Status', style: TextStyle(color: AppTheme.slate400, fontSize: 10, fontWeight: FontWeight.bold)),
+                                        Text(feeDue <= 0 ? 'Fully Paid' : '₹${feeDue.toInt()} Due', style: TextStyle(color: feeDue <= 0 ? AppTheme.emerald : AppTheme.rose, fontSize: 14, fontWeight: FontWeight.bold)),
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                n['title'] ?? '',
-                                style: const TextStyle(
-                                  color: AppTheme.slate900,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                n['content'] ?? '',
-                                style: const TextStyle(color: AppTheme.slate600, fontSize: 12),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
+                            ),
                           ),
-                        );
-                      }),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // ALL ERP FEATURES HUB (Requested: Neat, clean, not complex, click to visit all)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'ERP Modules & Services',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.slate900,
+                          ),
+                        ),
+                        Text(
+                          'Tap to open',
+                          style: TextStyle(fontSize: 11, color: AppTheme.slate400, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Grid of all ERP modules
+                    GridView.count(
+                      crossAxisCount: 2,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 1.35,
+                      children: [
+                        _moduleCard(
+                          title: 'Attendance',
+                          subtitle: 'Daily Roll & History',
+                          icon: Icons.calendar_today_rounded,
+                          color: AppTheme.emerald,
+                          bg: AppTheme.emeraldLight,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentAttendanceScreen())),
+                        ),
+                        _moduleCard(
+                          title: 'LMS Curriculum',
+                          subtitle: 'Subjects & Teachers',
+                          icon: Icons.local_library_rounded,
+                          color: AppTheme.navyDark,
+                          bg: AppTheme.indigoLight,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentLmsScreen())),
+                        ),
+                        _moduleCard(
+                          title: 'Homework & Notes',
+                          subtitle: 'Assignments & Docs',
+                          icon: Icons.assignment_rounded,
+                          color: AppTheme.purple,
+                          bg: AppTheme.purpleLight,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentLmsScreen())),
+                        ),
+                        _moduleCard(
+                          title: 'Exam Results',
+                          subtitle: 'Marks & Report Cards',
+                          icon: Icons.assessment_rounded,
+                          color: AppTheme.amber,
+                          bg: AppTheme.amberLight,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentMarksScreen())),
+                        ),
+                        _moduleCard(
+                          title: 'Fee Payments',
+                          subtitle: 'Invoices & Receipts',
+                          icon: Icons.receipt_long_rounded,
+                          color: AppTheme.cyan,
+                          bg: AppTheme.cyanLight,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentFeesScreen())),
+                        ),
+                        _moduleCard(
+                          title: 'Digital ID Card',
+                          subtitle: 'Student Identity Pass',
+                          icon: Icons.badge_rounded,
+                          color: AppTheme.gold,
+                          bg: AppTheme.goldLight,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentIdCardScreen())),
+                        ),
+                        _moduleCard(
+                          title: 'Class Timetable',
+                          subtitle: 'Periods & Schedule',
+                          icon: Icons.schedule_rounded,
+                          color: AppTheme.navyMedium,
+                          bg: AppTheme.indigoLight,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentTimetableScreen())),
+                        ),
+                        _moduleCard(
+                          title: 'School Circulars',
+                          subtitle: 'Notices & Alerts',
+                          icon: Icons.campaign_rounded,
+                          color: AppTheme.rose,
+                          bg: AppTheme.roseLight,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NoticesScreen())),
+                        ),
+                        _moduleCard(
+                          title: 'Leave Request',
+                          subtitle: 'Medical & Absence',
+                          icon: Icons.event_busy_rounded,
+                          color: AppTheme.emerald,
+                          bg: AppTheme.emeraldLight,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentLeaveScreen())),
+                        ),
+                        _moduleCard(
+                          title: 'Student Profile',
+                          subtitle: 'Records & Identity',
+                          icon: Icons.person_rounded,
+                          color: AppTheme.slate800,
+                          bg: AppTheme.slate100,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentProfileScreen())),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 24),
                   ],
                 ),
               ),
@@ -435,40 +471,76 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
     );
   }
 
-  Widget _quickAction(IconData icon, String label, Color color, Color bg, VoidCallback onTap) {
+  Widget _moduleCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required Color bg,
+    required VoidCallback onTap,
+  }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: bg,
-                  borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppTheme.slate100),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.navyDark.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: bg,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: color, size: 20),
                 ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppTheme.slate900,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
+                Icon(Icons.arrow_forward_rounded, color: AppTheme.slate300, size: 16),
+              ],
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: AppTheme.slate900,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: AppTheme.slate400,
+                    fontSize: 10,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

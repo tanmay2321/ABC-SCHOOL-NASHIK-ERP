@@ -14,8 +14,8 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _loginController = TextEditingController(text: 'student@edu.in');
-  final _passwordController = TextEditingController(text: 'Student@123');
+  final _loginController = TextEditingController();
+  final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
   String? _errorMessage;
@@ -41,14 +41,6 @@ class _LoginScreenState extends State<LoginScreen> {
     _loginController.dispose();
     _passwordController.dispose();
     super.dispose();
-  }
-
-  void _fillCredentials(String user, String pass) {
-    setState(() {
-      _loginController.text = user;
-      _passwordController.text = pass;
-      _errorMessage = null;
-    });
   }
 
   Future<void> _handleLogin() async {
@@ -333,25 +325,31 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     // School Crest & Title
                     Container(
-                      width: 76,
-                      height: 76,
+                      width: 80,
+                      height: 80,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [AppTheme.gold, AppTheme.goldLight],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
+                        color: Colors.transparent,
                         borderRadius: BorderRadius.circular(22),
                         boxShadow: [
                           BoxShadow(
-                            color: AppTheme.gold.withValues(alpha: 0.35),
-                            blurRadius: 20,
+                            color: Colors.black.withValues(alpha: 0.3),
+                            blurRadius: 18,
                             offset: const Offset(0, 8),
                           ),
                         ],
                       ),
-                      child: const Center(
-                        child: Icon(Icons.school_rounded, color: AppTheme.navyDark, size: 42),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(22),
+                        child: Image.asset(
+                          'assets/images/logo.png',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            color: AppTheme.navyDark,
+                            child: const Center(
+                              child: Icon(Icons.school_rounded, color: AppTheme.gold, size: 42),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 14),
@@ -377,8 +375,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'Unified Smart Cloud ERP & Mobile App',
-                      style: TextStyle(color: Colors.white60, fontSize: 12),
+                      'BWIS ERP • Smart Unified Cloud & Mobile',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
                     ),
                     const SizedBox(height: 24),
 
@@ -410,7 +408,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                             const Text(
-                              'Same login ID & password as the web portal',
+                              'Use your school email/username & password',
                               style: TextStyle(color: AppTheme.slate400, fontSize: 12),
                             ),
                             const SizedBox(height: 20),
@@ -449,7 +447,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               keyboardType: TextInputType.emailAddress,
                               decoration: const InputDecoration(
                                 labelText: 'Email or Username',
-                                hintText: 'e.g. student@edu.in',
+                                hintText: 'Enter your ID (e.g. user@edu.in)',
                                 prefixIcon: Icon(Icons.person_outline_rounded, color: AppTheme.navyMedium),
                               ),
                               validator: (val) => (val == null || val.trim().isEmpty) ? 'Enter your login ID' : null,
@@ -509,32 +507,20 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
 
-                    // Quick 1-Tap Real Accounts Pills
+                    // Help & Campus Info
                     const Text(
-                      'REAL SCHOOL ACCOUNTS (1-TAP AUTOFILL)',
-                      style: TextStyle(
-                        color: Colors.white54,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                      ),
+                      'Bellwether International School • Nandurbar',
+                      style: TextStyle(color: Colors.white60, fontSize: 11),
                     ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      alignment: WrapAlignment.center,
-                      children: [
-                        _demoRoleChip('🎓 Student', 'student@edu.in', 'Student@123', AppTheme.gold),
-                        _demoRoleChip('👨‍🏫 Teacher', 'teacher@edu.in', 'Teacher@123', AppTheme.cyan),
-                        _demoRoleChip('🏛️ Principal', 'principal@edu.in', 'Principal@123', AppTheme.purple),
-                        _demoRoleChip('⚙️ Admin', 'admin@edu.in', 'Admin@1234', AppTheme.emerald),
-                      ],
+                    const SizedBox(height: 6),
+                    Text(
+                      'Helpline: +91 6262848446 • bwis.nandurbar@gmail.com',
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 10),
                     ),
 
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 14),
 
                     // Server Settings Gear Button
                     TextButton.icon(
@@ -551,25 +537,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _demoRoleChip(String label, String user, String pass, Color color) {
-    return InkWell(
-      onTap: () => _fillCredentials(user, pass),
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withValues(alpha: 0.4)),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold),
-        ),
       ),
     );
   }

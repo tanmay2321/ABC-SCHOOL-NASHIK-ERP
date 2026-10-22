@@ -30,7 +30,7 @@ class BwisErpApp extends StatelessWidget {
     }
 
     return MaterialApp(
-      title: 'BWIS Smart ERP',
+      title: 'BWIS ERP',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: homeScreen,

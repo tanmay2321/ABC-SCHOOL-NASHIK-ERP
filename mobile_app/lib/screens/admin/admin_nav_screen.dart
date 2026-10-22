@@ -3,6 +3,7 @@ import '../../theme/app_theme.dart';
 import '../../services/api_service.dart';
 import '../../widgets/bento_card.dart';
 import '../../widgets/section_header.dart';
+import '../../widgets/notification_modal.dart';
 import '../login_screen.dart';
 
 class AdminNavScreen extends StatefulWidget {
@@ -21,6 +22,7 @@ class _AdminNavScreenState extends State<AdminNavScreen> with SingleTickerProvid
   Map<String, dynamic>? _settingsData;
   bool _isLoading = true;
   String _selectedClassFilter = 'All';
+  int _unreadNotifs = 0;
 
   List<String> _classList = ApiService.standardClasses;
 
@@ -48,6 +50,7 @@ class _AdminNavScreenState extends State<AdminNavScreen> with SingleTickerProvid
       final teachersFuture = ApiService().fetchTeachers();
       final academicFuture = ApiService().fetchAcademicYear();
       final settingsFuture = ApiService().fetchSettings();
+      final notifsFuture = ApiService().fetchNotifications();
 
       final results = await Future.wait([
         dashFuture,
@@ -56,6 +59,7 @@ class _AdminNavScreenState extends State<AdminNavScreen> with SingleTickerProvid
         academicFuture,
         settingsFuture,
         classesFuture,
+        notifsFuture,
       ]);
 
       if (mounted) {
@@ -66,6 +70,7 @@ class _AdminNavScreenState extends State<AdminNavScreen> with SingleTickerProvid
           _academicData = results[3] as Map<String, dynamic>;
           _settingsData = results[4] as Map<String, dynamic>;
           _classList = results[5] as List<String>;
+          _unreadNotifs = (results[6] as Map<String, dynamic>)['unread_count'] as int? ?? 0;
           _isLoading = false;
         });
       }
@@ -523,6 +528,35 @@ class _AdminNavScreenState extends State<AdminNavScreen> with SingleTickerProvid
         ),
         actions: [
           IconButton(
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.notifications_rounded, color: Colors.white, size: 24),
+                if (_unreadNotifs > 0)
+                  Positioned(
+                    right: -2,
+                    top: -2,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: AppTheme.rose,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        '$_unreadNotifs',
+                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            onPressed: () {
+              NotificationModal.show(context, onDismiss: () {
+                _loadAllData();
+              });
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.settings_outlined, color: Colors.white70),
             tooltip: 'School Branding & Settings',
             onPressed: _showSettingsDialog,
@@ -580,11 +614,100 @@ class _AdminNavScreenState extends State<AdminNavScreen> with SingleTickerProvid
     final int pending = (metrics['pending_admissions'] is num) ? (metrics['pending_admissions'] as num).toInt() : 0;
     final notices = _dashData?['recent_notices'] as List<dynamic>? ?? [];
 
+    final user = ApiService().currentUser;
+    final roleName = user?.role == 'principal'
+        ? 'School Principal'
+        : (user?.role == 'vice_principal' ? 'Vice Principal' : 'Head Administrator');
+
     return RefreshIndicator(
       onRefresh: _loadAllData,
       child: ListView(
         padding: const EdgeInsets.all(18),
         children: [
+          // Leadership Profile Hero Card (Requested!)
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: AppTheme.navyHeroGradient,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.navyDark.withValues(alpha: 0.25),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppTheme.gold, width: 2.5),
+                    color: AppTheme.navyMedium,
+                  ),
+                  child: Center(
+                    child: Text(
+                      roleName[0],
+                      style: const TextStyle(color: AppTheme.gold, fontSize: 24, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        user?.fullName ?? roleName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: AppTheme.gold.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppTheme.gold.withValues(alpha: 0.5)),
+                            ),
+                            child: Text(
+                              roleName.toUpperCase(),
+                              style: const TextStyle(color: AppTheme.goldLight, fontSize: 10, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              'SESSION 2026-27',
+                              style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+
           // Live Sync Status Card
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

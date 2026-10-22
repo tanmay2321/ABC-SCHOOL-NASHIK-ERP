@@ -1,6 +1,6 @@
 {
-    "name": "bwis_erp_app",
-    "short_name": "bwis_erp_app",
+    "name": "BWIS ERP",
+    "short_name": "BWIS ERP",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
