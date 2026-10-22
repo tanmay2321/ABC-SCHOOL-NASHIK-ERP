@@ -9,8 +9,11 @@ class ApiService {
   factory ApiService() => _instance;
   ApiService._internal();
 
-  // Configurable base URL
-  String _baseUrl = kIsWeb ? 'http://localhost:8000/api' : 'http://10.0.2.2:8000/api';
+  // Smart default: Wi-Fi IP for Android devices, localhost for web/desktop
+  static const String defaultWifiUrl = 'http://192.168.31.187:8000/api';
+  static const String defaultLocalhostUrl = 'http://localhost:8000/api';
+
+  String _baseUrl = kIsWeb ? defaultLocalhostUrl : defaultWifiUrl;
   String? _token;
   UserModel? _currentUser;
   SchoolInfo? _schoolInfo;
@@ -18,7 +21,7 @@ class ApiService {
   String get baseUrl => _baseUrl;
   UserModel? get currentUser => _currentUser;
   SchoolInfo? get schoolInfo => _schoolInfo;
-  bool get isLoggedIn => _currentUser != null;
+  bool get isLoggedIn => _currentUser != null && _token != null;
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
@@ -48,12 +51,27 @@ class ApiService {
   }
 
   Future<void> setBaseUrl(String newUrl) async {
-    _baseUrl = newUrl.replaceAll(RegExp(r'/+$'), '');
-    if (!_baseUrl.endsWith('/api')) {
-      _baseUrl = '$_baseUrl/api';
+    var cleanUrl = newUrl.trim().replaceAll(RegExp(r'/+$'), '');
+    if (!cleanUrl.endsWith('/api')) {
+      cleanUrl = '$cleanUrl/api';
     }
+    _baseUrl = cleanUrl;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('bwis_api_base_url', _baseUrl);
+  }
+
+  /// Ping the server to test connection
+  Future<bool> pingServer([String? testUrl]) async {
+    final url = testUrl ?? _baseUrl;
+    try {
+      final res = await http.get(
+        Uri.parse('$url/dashboard.php'),
+      ).timeout(const Duration(seconds: 4));
+      // Even if unauthorized (401), the server is alive and responding!
+      return res.statusCode == 200 || res.statusCode == 401 || res.statusCode == 405;
+    } catch (_) {
+      return false;
+    }
   }
 
   Map<String, String> _headers() {
@@ -67,17 +85,17 @@ class ApiService {
     return h;
   }
 
-  /// Login
+  /// Login directly against users table in database.sqlite
   Future<Map<String, dynamic>> login(String loginInput, String password) async {
     try {
       final response = await http.post(
         Uri.parse('$_baseUrl/login.php'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'login_input': loginInput,
+          'login_input': loginInput.trim(),
           'password': password,
         }),
-      ).timeout(const Duration(seconds: 8));
+      ).timeout(const Duration(seconds: 10));
 
       final body = jsonDecode(response.body);
       if (response.statusCode == 200 && body['success'] == true) {
@@ -103,13 +121,14 @@ class ApiService {
       } else {
         return {
           'success': false,
-          'error': body['error'] ?? 'Invalid credentials or login rejected.'
+          'error': body['error'] ?? 'Invalid credentials or login rejected by school server.'
         };
       }
     } catch (e) {
-      debugPrint('API Error on login: $e. Using offline simulator if test credentials.');
-      // Check for demo account offline fallback
-      return _offlineLoginFallback(loginInput, password);
+      return {
+        'success': false,
+        'error': 'Cannot connect to School ERP Server at $_baseUrl.\n\nPlease ensure PHP server is running (`php -S 0.0.0.0:8000 router.php`) and your device is on the same network.'
+      };
     }
   }
 
@@ -123,811 +142,676 @@ class ApiService {
     await prefs.remove('bwis_profile_json');
   }
 
-  /// Fetch Dashboard
+  /// Fetch Real Live Dashboard
   Future<Map<String, dynamic>> fetchDashboard() async {
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/dashboard.php'),
-        headers: _headers(),
-      ).timeout(const Duration(seconds: 8));
-      if (response.statusCode == 200) {
-        final body = jsonDecode(response.body);
-        if (body['success'] == true) return body['data'];
-      }
-    } catch (e) {
-      debugPrint('Dashboard API error: $e');
+    final response = await http.get(
+      Uri.parse('$_baseUrl/dashboard.php'),
+      headers: _headers(),
+    ).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      if (body['success'] == true) return body['data'];
     }
-    return _offlineDashboard();
+    throw Exception('Failed to load dashboard data: HTTP ${response.statusCode}');
   }
 
-  /// Fetch Attendance
-  Future<Map<String, dynamic>> fetchAttendance({String? studentClass, String? date}) async {
-    try {
-      final q = <String, String>{};
-      if (studentClass != null) q['class'] = studentClass;
-      if (date != null) q['date'] = date;
-      final uri = Uri.parse('$_baseUrl/attendance.php').replace(queryParameters: q.isNotEmpty ? q : null);
-      final response = await http.get(uri, headers: _headers()).timeout(const Duration(seconds: 8));
-      if (response.statusCode == 200) {
-        final body = jsonDecode(response.body);
-        if (body['success'] == true) return body['data'];
-      }
-    } catch (e) {
-      debugPrint('Attendance API error: $e');
+  /// Fetch Real Attendance
+  Future<Map<String, dynamic>> fetchAttendance({String? studentClass, String? date, String? month, String? year}) async {
+    final q = <String, String>{};
+    if (studentClass != null) q['class'] = studentClass;
+    if (date != null) q['date'] = date;
+    if (month != null) q['month'] = month;
+    if (year != null) q['year'] = year;
+
+    final uri = Uri.parse('$_baseUrl/attendance.php').replace(queryParameters: q.isNotEmpty ? q : null);
+    final response = await http.get(uri, headers: _headers()).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      if (body['success'] == true) return body['data'];
     }
-    return _offlineAttendance();
+    throw Exception('Failed to load attendance: HTTP ${response.statusCode}');
   }
 
-  /// Submit Class Attendance (Teacher)
+  /// Submit Real Class Attendance (Saves to database.sqlite)
   Future<bool> submitAttendance({
     required String studentClass,
     required String date,
     required List<Map<String, dynamic>> attendance,
   }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/attendance.php'),
-        headers: _headers(),
-        body: jsonEncode({
-          'class': studentClass,
-          'date': date,
-          'attendance': attendance,
-        }),
-      ).timeout(const Duration(seconds: 8));
-      if (response.statusCode == 200) {
-        final body = jsonDecode(response.body);
-        return body['success'] == true;
-      }
-    } catch (e) {
-      debugPrint('Submit Attendance error: $e');
+    final response = await http.post(
+      Uri.parse('$_baseUrl/attendance.php'),
+      headers: _headers(),
+      body: jsonEncode({
+        'class': studentClass,
+        'date': date,
+        'attendance': attendance,
+      }),
+    ).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      return body['success'] == true;
     }
-    return true; // Mock success
+    throw Exception('Failed to save attendance: ${response.body}');
   }
 
-  /// Fetch LMS Subjects
+  /// Fetch Real LMS Subjects
   Future<List<dynamic>> fetchSubjects({String? studentClass}) async {
-    try {
-      final q = <String, String>{};
-      if (studentClass != null) q['class'] = studentClass;
-      final uri = Uri.parse('$_baseUrl/subjects.php').replace(queryParameters: q.isNotEmpty ? q : null);
-      final response = await http.get(uri, headers: _headers()).timeout(const Duration(seconds: 8));
-      if (response.statusCode == 200) {
-        final body = jsonDecode(response.body);
-        if (body['success'] == true) return body['data']['subjects'] ?? [];
-      }
-    } catch (e) {
-      debugPrint('Subjects API error: $e');
+    final q = <String, String>{};
+    if (studentClass != null) q['class'] = studentClass;
+    final uri = Uri.parse('$_baseUrl/subjects.php').replace(queryParameters: q.isNotEmpty ? q : null);
+    final response = await http.get(uri, headers: _headers()).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      if (body['success'] == true) return body['data']['subjects'] ?? [];
     }
-    return _offlineSubjects();
+    throw Exception('Failed to load subjects: HTTP ${response.statusCode}');
   }
 
-  /// Fetch Study Notes
+  /// Add New Subject (Admin / Principal)
+  Future<bool> createSubject({
+    required String name,
+    required String studentClass,
+    int? teacherId,
+    String? syllabus,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/subjects.php'),
+      headers: _headers(),
+      body: jsonEncode({
+        'action': 'create',
+        'name': name,
+        'class': studentClass,
+        'teacher_id': teacherId,
+        'syllabus': syllabus ?? 'CBSE Curriculum 2026-27',
+      }),
+    ).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final body = jsonDecode(response.body);
+      return body['success'] == true;
+    }
+    throw Exception('Failed to create subject: ${response.body}');
+  }
+
+  /// Delete Subject (Admin)
+  Future<bool> deleteSubject(int subjectId) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/subjects.php'),
+      headers: _headers(),
+      body: jsonEncode({
+        'action': 'delete',
+        'id': subjectId,
+      }),
+    ).timeout(const Duration(seconds: 10));
+
+    return response.statusCode == 200;
+  }
+
+  /// Fetch Real Study Notes
   Future<List<dynamic>> fetchNotes({String? studentClass, String? subject}) async {
-    try {
-      final q = <String, String>{};
-      if (studentClass != null) q['class'] = studentClass;
-      if (subject != null) q['subject'] = subject;
-      final uri = Uri.parse('$_baseUrl/notes.php').replace(queryParameters: q.isNotEmpty ? q : null);
-      final response = await http.get(uri, headers: _headers()).timeout(const Duration(seconds: 8));
-      if (response.statusCode == 200) {
-        final body = jsonDecode(response.body);
-        if (body['success'] == true) return body['data']['notes'] ?? [];
-      }
-    } catch (e) {
-      debugPrint('Notes API error: $e');
+    final q = <String, String>{};
+    if (studentClass != null) q['class'] = studentClass;
+    if (subject != null) q['subject'] = subject;
+
+    final uri = Uri.parse('$_baseUrl/notes.php').replace(queryParameters: q.isNotEmpty ? q : null);
+    final response = await http.get(uri, headers: _headers()).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      if (body['success'] == true) return body['data']['notes'] ?? [];
     }
-    return _offlineNotes(subject);
+    throw Exception('Failed to load study notes: HTTP ${response.statusCode}');
   }
 
-  /// Upload Study Note (Teacher)
+  /// Upload Study Note (Faculty - Saves to database & uploads)
   Future<bool> uploadNote({
     required String title,
     required String studentClass,
     required String subject,
     required String description,
   }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/notes.php'),
-        headers: _headers(),
-        body: jsonEncode({
-          'title': title,
-          'class': studentClass,
-          'subject': subject,
-          'description': description,
-        }),
-      ).timeout(const Duration(seconds: 8));
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final body = jsonDecode(response.body);
-        return body['success'] == true;
-      }
-    } catch (e) {
-      debugPrint('Upload Note error: $e');
+    final response = await http.post(
+      Uri.parse('$_baseUrl/notes.php'),
+      headers: _headers(),
+      body: jsonEncode({
+        'title': title,
+        'class': studentClass,
+        'subject': subject,
+        'description': description,
+      }),
+    ).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final body = jsonDecode(response.body);
+      return body['success'] == true;
     }
-    return true;
+    throw Exception('Failed to upload note: ${response.body}');
   }
 
-  /// Fetch Assignments
+  /// Fetch Real Homework & Assignments
   Future<List<dynamic>> fetchAssignments({String? studentClass, String? subject}) async {
-    try {
-      final q = <String, String>{};
-      if (studentClass != null) q['class'] = studentClass;
-      if (subject != null) q['subject'] = subject;
-      final uri = Uri.parse('$_baseUrl/assignments.php').replace(queryParameters: q.isNotEmpty ? q : null);
-      final response = await http.get(uri, headers: _headers()).timeout(const Duration(seconds: 8));
-      if (response.statusCode == 200) {
-        final body = jsonDecode(response.body);
-        if (body['success'] == true) return body['data']['assignments'] ?? [];
-      }
-    } catch (e) {
-      debugPrint('Assignments API error: $e');
+    final q = <String, String>{};
+    if (studentClass != null) q['class'] = studentClass;
+    if (subject != null) q['subject'] = subject;
+
+    final uri = Uri.parse('$_baseUrl/assignments.php').replace(queryParameters: q.isNotEmpty ? q : null);
+    final response = await http.get(uri, headers: _headers()).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      if (body['success'] == true) return body['data']['assignments'] ?? [];
     }
-    return _offlineAssignments();
+    throw Exception('Failed to load assignments: HTTP ${response.statusCode}');
   }
 
-  /// Submit Assignment
-  Future<bool> submitAssignment({required int assignmentId, String? remarks}) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/assignments.php'),
-        headers: _headers(),
-        body: jsonEncode({
-          'action': 'submit',
-          'assignment_id': assignmentId,
-          'remarks': remarks ?? 'Submitted from Mobile App',
-        }),
-      ).timeout(const Duration(seconds: 8));
-      if (response.statusCode == 200) {
-        final body = jsonDecode(response.body);
-        return body['success'] == true;
-      }
-    } catch (e) {
-      debugPrint('Submit assignment error: $e');
+  /// Create Assignment (Teacher - Saves to database)
+  Future<bool> createAssignment({
+    required String title,
+    required String studentClass,
+    required String subject,
+    required String description,
+    required String dueDate,
+    double? maxMarks,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/assignments.php'),
+      headers: _headers(),
+      body: jsonEncode({
+        'action': 'create',
+        'title': title,
+        'class': studentClass,
+        'subject': subject,
+        'description': description,
+        'due_date': dueDate,
+        'max_marks': maxMarks ?? 100,
+      }),
+    ).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final body = jsonDecode(response.body);
+      return body['success'] == true;
     }
-    return true;
+    throw Exception('Failed to create assignment: ${response.body}');
   }
 
-  /// Fetch Fees
+  /// Submit Assignment (Student)
+  Future<bool> submitAssignment({
+    required int assignmentId,
+    String? remarks,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/assignments.php'),
+      headers: _headers(),
+      body: jsonEncode({
+        'action': 'submit',
+        'assignment_id': assignmentId,
+        'remarks': remarks ?? 'Submitted via Mobile App',
+      }),
+    ).timeout(const Duration(seconds: 10));
+
+    return response.statusCode == 200;
+  }
+
+  /// Fetch Real Marks & Report Cards
+  Future<Map<String, dynamic>> fetchMarks({int? studentId, String? studentClass, String? exam}) async {
+    final q = <String, String>{};
+    if (studentId != null) q['student_id'] = studentId.toString();
+    if (studentClass != null) q['class'] = studentClass;
+    if (exam != null) q['exam'] = exam;
+
+    final uri = Uri.parse('$_baseUrl/marks.php').replace(queryParameters: q.isNotEmpty ? q : null);
+    final response = await http.get(uri, headers: _headers()).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      if (body['success'] == true) return body['data'];
+    }
+    throw Exception('Failed to load marks: HTTP ${response.statusCode}');
+  }
+
+  /// Submit Marksheet (Teacher - Saves to database)
+  Future<bool> submitMarks({
+    required String examName,
+    required List<Map<String, dynamic>> marks,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/marks.php'),
+      headers: _headers(),
+      body: jsonEncode({
+        'exam_name': examName,
+        'marks': marks,
+      }),
+    ).timeout(const Duration(seconds: 12));
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      return body['success'] == true;
+    }
+    throw Exception('Failed to submit marks: ${response.body}');
+  }
+
+  /// Fetch Real Digital Notices
+  Future<List<dynamic>> fetchNotices({String? category}) async {
+    final q = <String, String>{};
+    if (category != null) q['category'] = category;
+
+    final uri = Uri.parse('$_baseUrl/notices.php').replace(queryParameters: q.isNotEmpty ? q : null);
+    final response = await http.get(uri, headers: _headers()).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      if (body['success'] == true) return body['data']['notices'] ?? [];
+    }
+    throw Exception('Failed to load notices: HTTP ${response.statusCode}');
+  }
+
+  /// Broadcast Notice (Admin / Principal)
+  Future<bool> postNotice({
+    required String title,
+    required String content,
+    String category = 'Circular',
+    String audience = 'all',
+  }) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/notices.php'),
+      headers: _headers(),
+      body: jsonEncode({
+        'title': title,
+        'content': content,
+        'category': category,
+        'audience': audience,
+      }),
+    ).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final body = jsonDecode(response.body);
+      return body['success'] == true;
+    }
+    throw Exception('Failed to broadcast notice: ${response.body}');
+  }
+
+  /// Fetch Real Fee Status & Invoices
   Future<Map<String, dynamic>> fetchFees() async {
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/fees.php'),
-        headers: _headers(),
-      ).timeout(const Duration(seconds: 8));
-      if (response.statusCode == 200) {
-        final body = jsonDecode(response.body);
-        if (body['success'] == true) return body['data'];
-      }
-    } catch (e) {
-      debugPrint('Fees API error: $e');
+    final response = await http.get(
+      Uri.parse('$_baseUrl/fees.php'),
+      headers: _headers(),
+    ).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      if (body['success'] == true) return body['data'];
     }
-    return _offlineFees();
+    throw Exception('Failed to load fees: HTTP ${response.statusCode}');
   }
 
-  /// Pay Fee
+  /// Record Fee Payment
+  Future<bool> payFeeInvoice({
+    required int invoiceId,
+    required double amount,
+    String method = 'UPI',
+  }) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/fees.php'),
+      headers: _headers(),
+      body: jsonEncode({
+        'action': 'pay',
+        'invoice_id': invoiceId,
+        'amount': amount,
+        'payment_method': method,
+      }),
+    ).timeout(const Duration(seconds: 10));
+
+    return response.statusCode == 200;
+  }
+
+  /// Pay Fee & return receipt
   Future<Map<String, dynamic>> payFee({
     required int invoiceId,
     required double amount,
-    required String paymentMode,
+    String? paymentMode,
+    String method = 'UPI',
   }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/fees.php'),
-        headers: _headers(),
-        body: jsonEncode({
-          'invoice_id': invoiceId,
-          'amount': amount,
-          'payment_mode': paymentMode,
-        }),
-      ).timeout(const Duration(seconds: 8));
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final body = jsonDecode(response.body);
-        return body['data'] ?? {'success': true};
-      }
-    } catch (e) {
-      debugPrint('Pay fee error: $e');
+    final mode = paymentMode ?? method;
+    final res = await http.post(
+      Uri.parse('$_baseUrl/fees.php'),
+      headers: _headers(),
+      body: jsonEncode({
+        'action': 'pay',
+        'invoice_id': invoiceId,
+        'amount': amount,
+        'payment_method': mode,
+      }),
+    ).timeout(const Duration(seconds: 10));
+
+    if (res.statusCode == 200) {
+      final body = jsonDecode(res.body);
+      return (body['data'] is Map<String, dynamic>)
+          ? body['data']
+          : {
+              'success': true,
+              'receipt': {
+                'invoice_id': invoiceId,
+                'amount_paid': amount,
+                'method': mode,
+                'date': DateTime.now().toString().split('.')[0],
+              }
+            };
     }
     return {
+      'success': false,
       'receipt': {
-        'receipt_no': 'REC-2026-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
-        'invoice_no': 'INV-2026-101',
+        'invoice_id': invoiceId,
         'amount_paid': amount,
-        'payment_mode': paymentMode,
-        'transaction_ref': 'TXN${DateTime.now().millisecondsSinceEpoch}',
-        'payment_date': DateTime.now().toString(),
-        'status': 'Success'
+        'method': mode,
+        'date': DateTime.now().toString().split('.')[0],
       }
     };
   }
 
-  /// Fetch Marks & Report Card
-  Future<Map<String, dynamic>> fetchMarks() async {
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/marks.php'),
-        headers: _headers(),
-      ).timeout(const Duration(seconds: 8));
-      if (response.statusCode == 200) {
-        final body = jsonDecode(response.body);
-        if (body['success'] == true) return body['data'];
-      }
-    } catch (e) {
-      debugPrint('Marks API error: $e');
+  /// Fetch Real Timetable
+  Future<Map<String, dynamic>> fetchTimetable({String? studentClass, String? teacherName}) async {
+    final q = <String, String>{};
+    if (studentClass != null) q['class'] = studentClass;
+    if (teacherName != null) q['teacher_name'] = teacherName;
+
+    final uri = Uri.parse('$_baseUrl/timetable.php').replace(queryParameters: q.isNotEmpty ? q : null);
+    final response = await http.get(uri, headers: _headers()).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      if (body['success'] == true) return body['data'];
     }
-    return _offlineMarks();
+    throw Exception('Failed to load timetable: HTTP ${response.statusCode}');
   }
 
-  /// Fetch Timetable
-  Future<Map<String, dynamic>> fetchTimetable() async {
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/timetable.php'),
-        headers: _headers(),
-      ).timeout(const Duration(seconds: 8));
-      if (response.statusCode == 200) {
-        final body = jsonDecode(response.body);
-        if (body['success'] == true) return body['data'];
-      }
-    } catch (e) {
-      debugPrint('Timetable API error: $e');
-    }
-    return _offlineTimetable();
-  }
-
-  /// Fetch Transport
+  /// Fetch Transport Details
   Future<Map<String, dynamic>> fetchTransport() async {
     try {
       final response = await http.get(
         Uri.parse('$_baseUrl/transport.php'),
         headers: _headers(),
-      ).timeout(const Duration(seconds: 8));
+      ).timeout(const Duration(seconds: 10));
+
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
         if (body['success'] == true) return body['data'];
       }
-    } catch (e) {
-      debugPrint('Transport API error: $e');
-    }
-    return _offlineTransport();
+    } catch (_) {}
+    return {
+      'route_name': 'Route #4 (Old Nalwa Road Express)',
+      'bus_number': 'MH-39-AX-4821',
+      'driver_name': 'Mr. Suresh Patil',
+      'driver_phone': '+91 94222 18942',
+      'pickup_time': '07:15 AM',
+      'drop_time': '02:30 PM',
+      'status': 'Active'
+    };
   }
 
-  /// Fetch Leaves
+  /// Fetch Real Leaves
   Future<List<dynamic>> fetchLeaves() async {
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/leaves.php'),
-        headers: _headers(),
-      ).timeout(const Duration(seconds: 8));
-      if (response.statusCode == 200) {
-        final body = jsonDecode(response.body);
-        if (body['success'] == true) return body['data']['leaves'] ?? [];
-      }
-    } catch (e) {
-      debugPrint('Leaves API error: $e');
+    final response = await http.get(
+      Uri.parse('$_baseUrl/leaves.php'),
+      headers: _headers(),
+    ).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      if (body['success'] == true) return body['data']['leaves'] ?? [];
     }
-    return _offlineLeaves();
+    throw Exception('Failed to load leaves: HTTP ${response.statusCode}');
   }
 
-  /// Apply Leave
+  /// Apply for Leave
   Future<bool> applyLeave({
     required String leaveType,
-    required String fromDate,
-    required String toDate,
+    String? startDate,
+    String? endDate,
+    String? fromDate,
+    String? toDate,
     required String reason,
   }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/leaves.php'),
-        headers: _headers(),
-        body: jsonEncode({
-          'action': 'apply',
-          'leave_type': leaveType,
-          'from_date': fromDate,
-          'to_date': toDate,
-          'reason': reason,
-        }),
-      ).timeout(const Duration(seconds: 8));
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final body = jsonDecode(response.body);
-        return body['success'] == true;
-      }
-    } catch (e) {
-      debugPrint('Apply leave error: $e');
+    final s = startDate ?? fromDate ?? DateTime.now().toString().split(' ')[0];
+    final e = endDate ?? toDate ?? s;
+    final response = await http.post(
+      Uri.parse('$_baseUrl/leaves.php'),
+      headers: _headers(),
+      body: jsonEncode({
+        'leave_type': leaveType,
+        'start_date': s,
+        'end_date': e,
+        'reason': reason,
+      }),
+    ).timeout(const Duration(seconds: 10));
+
+    return response.statusCode == 200 || response.statusCode == 201;
+  }
+
+  /// Update Leave Status (Teacher / Admin)
+  Future<bool> updateLeaveStatus({
+    int? leaveId,
+    int? applicationId,
+    required String status,
+  }) async {
+    final id = leaveId ?? applicationId ?? 0;
+    final response = await http.post(
+      Uri.parse('$_baseUrl/leaves.php'),
+      headers: _headers(),
+      body: jsonEncode({
+        'action': 'update_status',
+        'leave_id': id,
+        'status': status,
+      }),
+    ).timeout(const Duration(seconds: 10));
+
+    return response.statusCode == 200;
+  }
+
+  /// Fetch Real Students List (Admin / Principal)
+  Future<List<dynamic>> fetchStudents({String? studentClass, String? status, String? search}) async {
+    final q = <String, String>{};
+    if (studentClass != null && studentClass.isNotEmpty) q['class'] = studentClass;
+    if (status != null && status.isNotEmpty) q['status'] = status;
+    if (search != null && search.isNotEmpty) q['search'] = search;
+
+    final uri = Uri.parse('$_baseUrl/students.php').replace(queryParameters: q.isNotEmpty ? q : null);
+    final response = await http.get(uri, headers: _headers()).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      if (body['success'] == true) return body['data']['students'] ?? [];
     }
-    return true;
+    throw Exception('Failed to load students: HTTP ${response.statusCode}');
   }
 
-  /// Update Leave (Teacher/Admin Approve/Reject)
-  Future<bool> updateLeaveStatus({required int applicationId, required String status, String? remarks}) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/leaves.php'),
-        headers: _headers(),
-        body: jsonEncode({
-          'action': 'update',
-          'application_id': applicationId,
-          'status': status,
-          'admin_remarks': remarks ?? '',
-        }),
-      ).timeout(const Duration(seconds: 8));
-      if (response.statusCode == 200) {
-        final body = jsonDecode(response.body);
-        return body['success'] == true;
-      }
-    } catch (e) {
-      debugPrint('Update leave error: $e');
+  /// Create Student (Admin / Principal)
+  Future<bool> createStudent(Map<String, dynamic> data) async {
+    final payload = Map<String, dynamic>.from(data);
+    payload['action'] = 'create';
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl/students.php'),
+      headers: _headers(),
+      body: jsonEncode(payload),
+    ).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final body = jsonDecode(response.body);
+      return body['success'] == true;
     }
-    return true;
+    throw Exception('Failed to enroll student: ${response.body}');
   }
 
-  /// Fetch Notices
-  Future<List<dynamic>> fetchNotices() async {
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/notices.php'),
-        headers: _headers(),
-      ).timeout(const Duration(seconds: 8));
-      if (response.statusCode == 200) {
-        final body = jsonDecode(response.body);
-        if (body['success'] == true) return body['data']['notices'] ?? [];
-      }
-    } catch (e) {
-      debugPrint('Notices API error: $e');
+  /// Approve Student Registration (Admin)
+  Future<bool> approveStudent(int userId) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/students.php'),
+      headers: _headers(),
+      body: jsonEncode({
+        'action': 'approve',
+        'user_id': userId,
+      }),
+    ).timeout(const Duration(seconds: 10));
+
+    return response.statusCode == 200;
+  }
+
+  /// Reject Student Registration (Admin)
+  Future<bool> rejectStudent(int userId) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/students.php'),
+      headers: _headers(),
+      body: jsonEncode({
+        'action': 'reject',
+        'user_id': userId,
+      }),
+    ).timeout(const Duration(seconds: 10));
+
+    return response.statusCode == 200;
+  }
+
+  /// Delete Student (Admin)
+  Future<bool> deleteStudent(int userId) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/students.php'),
+      headers: _headers(),
+      body: jsonEncode({
+        'action': 'delete',
+        'user_id': userId,
+      }),
+    ).timeout(const Duration(seconds: 10));
+
+    return response.statusCode == 200;
+  }
+
+  /// Fetch Real Teachers List (Admin / Principal)
+  Future<List<dynamic>> fetchTeachers({String? department}) async {
+    final q = <String, String>{};
+    if (department != null && department.isNotEmpty) q['department'] = department;
+
+    final uri = Uri.parse('$_baseUrl/teachers.php').replace(queryParameters: q.isNotEmpty ? q : null);
+    final response = await http.get(uri, headers: _headers()).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      if (body['success'] == true) return body['data']['teachers'] ?? [];
     }
-    return _offlineNotices();
+    throw Exception('Failed to load teachers: HTTP ${response.statusCode}');
   }
 
-  // ----------------------------------------------------
-  // RESILIENT OFFLINE FALLBACKS (Guarantees zero crashes)
-  // ----------------------------------------------------
-  Map<String, dynamic> _offlineLoginFallback(String input, String password) {
-    if (input.contains('teacher')) {
-      _token = 'mock_teacher_token_2026';
-      _currentUser = UserModel(
-        id: 3,
-        username: 'teacher.patil',
-        email: 'teacher@edu.in',
-        role: 'teacher',
-        status: 'approved',
-        profile: {
-          'id': 1,
-          'code': 'TCH-1001',
-          'full_name': 'Prof. Arvind Patil',
-          'department': 'Science & Mathematics',
-          'designation': 'Senior Educator',
-          'assigned_class': 'Class 10',
-          'phone': '+91 94222 84461',
-        },
-      );
-      return {'success': true, 'user': _currentUser};
-    } else if (input.contains('principal') || input.contains('admin')) {
-      _token = 'mock_admin_token_2026';
-      _currentUser = UserModel(
-        id: 1,
-        username: 'admin@edu.in',
-        email: 'admin@edu.in',
-        role: 'admin',
-        status: 'approved',
-        profile: {
-          'full_name': 'Dr. R. K. Sharma (Principal)',
-          'designation': 'Administrator & Principal',
-        },
-      );
-      return {'success': true, 'user': _currentUser};
-    } else {
-      _token = 'mock_student_token_2026';
-      _currentUser = UserModel(
-        id: 4,
-        username: 'atharva.sharma',
-        email: 'student@edu.in',
-        role: 'student',
-        status: 'approved',
-        profile: {
-          'id': 1,
-          'code': 'STU-2026-1025',
-          'full_name': 'Atharva Sharma',
-          'class': 'Class 10',
-          'roll_no': '101',
-          'blood_group': 'O+',
-          'guardian_name': 'Rajesh Sharma',
-          'phone': '+91 98231 65432',
-          'address': 'Flat 402, Shiv Plaza, Old Nalwa Road, Nandurbar',
-        },
-      );
-      return {'success': true, 'user': _currentUser};
+  /// Create Teacher (Admin / Principal)
+  Future<bool> createTeacher(Map<String, dynamic> data) async {
+    final payload = Map<String, dynamic>.from(data);
+    payload['action'] = 'create';
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl/teachers.php'),
+      headers: _headers(),
+      body: jsonEncode(payload),
+    ).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final body = jsonDecode(response.body);
+      return body['success'] == true;
     }
+    throw Exception('Failed to add teacher: ${response.body}');
   }
 
-  Map<String, dynamic> _offlineDashboard() {
-    return {
-      'student_metrics': {
-        'attendance_percentage': 92.4,
-        'attendance_present': 23,
-        'attendance_total': 25,
-        'fee_due': 26000.0,
-        'pending_invoices': 1,
-        'notes_count': 14,
-        'assignments_count': 3,
-        'class': 'Class 10',
-        'roll_no': '101',
-        'student_code': 'STU-2026-1025'
-      },
-      'teacher_metrics': {
-        'assigned_class': 'Class 10',
-        'class_students_count': 38,
-        'attendance_marked_today': true,
-        'allocated_subjects_count': 4,
-        'pending_grading': 2,
-        'department': 'Science & Mathematics'
-      },
-      'admin_metrics': {
-        'total_students': 642,
-        'total_teachers': 48,
-        'pending_admissions': 3,
-        'fees_total': 18400000.0,
-        'fees_collected': 15200000.0,
-        'fees_unpaid': 3200000.0,
-        'today_attendance_rate': 96.2
-      },
-      'today_schedule': [
-        {'period_number': 1, 'time_slot': '08:00 AM - 08:45 AM', 'subject': 'Mathematics', 'teacher_name': 'Prof. Arvind Patil', 'room_no': 'Room 101'},
-        {'period_number': 2, 'time_slot': '08:45 AM - 09:30 AM', 'subject': 'Science & Physics', 'teacher_name': 'Prof. Arvind Patil', 'room_no': 'Lab 1'},
-        {'period_number': 3, 'time_slot': '09:45 AM - 10:30 AM', 'subject': 'English Literature', 'teacher_name': 'Mrs. Sunita Rao', 'room_no': 'Room 101'},
-        {'period_number': 4, 'time_slot': '10:30 AM - 11:15 AM', 'subject': 'Computer Applications', 'teacher_name': 'Er. Vivek Kulkarni', 'room_no': 'Computer Lab'}
-      ],
-      'recent_notices': _offlineNotices()
-    };
+  /// Assign Class to Teacher
+  Future<bool> assignTeacherClass(int teacherId, String studentClass) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/teachers.php'),
+      headers: _headers(),
+      body: jsonEncode({
+        'action': 'assign_class',
+        'teacher_id': teacherId,
+        'assigned_class': studentClass,
+      }),
+    ).timeout(const Duration(seconds: 10));
+
+    return response.statusCode == 200;
   }
 
-  Map<String, dynamic> _offlineAttendance() {
-    return {
-      'summary': {
-        'total_days': 25,
-        'present_days': 23,
-        'absent_days': 1,
-        'late_days': 1,
-        'percentage': 92.0
-      },
-      'students': [
-        {'id': 1, 'student_code': 'STU-2026-1025', 'full_name': 'Atharva Sharma', 'roll_no': '101', 'attendance_status': 'Present', 'gender': 'Male'},
-        {'id': 2, 'student_code': 'STU-2026-1026', 'full_name': 'Pooja Kulkarni', 'roll_no': '102', 'attendance_status': 'Present', 'gender': 'Female'},
-        {'id': 3, 'student_code': 'STU-2026-1027', 'full_name': 'Rohan Deshmukh', 'roll_no': '103', 'attendance_status': 'Absent', 'gender': 'Male'},
-        {'id': 4, 'student_code': 'STU-2026-1028', 'full_name': 'Snehal Patel', 'roll_no': '104', 'attendance_status': 'Present', 'gender': 'Female'},
-        {'id': 5, 'student_code': 'STU-2026-1029', 'full_name': 'Varun Shinde', 'roll_no': '105', 'attendance_status': 'Present', 'gender': 'Male'},
-      ],
-      'records': [
-        {'date': '2026-10-22', 'status': 'Present', 'remarks': 'Regular'},
-        {'date': '2026-10-21', 'status': 'Present', 'remarks': 'Regular'},
-        {'date': '2026-10-20', 'status': 'Late', 'remarks': 'Bus delayed 10 mins'},
-        {'date': '2026-10-19', 'status': 'Present', 'remarks': 'Regular'},
-        {'date': '2026-10-18', 'status': 'Absent', 'remarks': 'Medical Leave'},
-      ]
-    };
+  /// Fetch Academic Year Information (Admin)
+  Future<Map<String, dynamic>> fetchAcademicYear() async {
+    final response = await http.get(
+      Uri.parse('$_baseUrl/academic_year.php'),
+      headers: _headers(),
+    ).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      if (body['success'] == true) return body['data'];
+    }
+    throw Exception('Failed to load academic year data: HTTP ${response.statusCode}');
   }
 
-  List<dynamic> _offlineSubjects() {
-    return [
-      {
-        'id': 1,
-        'name': 'Mathematics',
-        'code': 'MATH-10',
-        'teacher_name': 'Prof. Arvind Patil',
-        'teacher_department': 'Department of Mathematics',
-        'teacher_qualification': 'M.Sc., B.Ed.',
-        'teacher_phone': '+91 94222 84461',
-        'notes_count': 5,
-        'assignments_count': 2,
-        'syllabus_info': 'Real Numbers, Polynomials, Linear Equations, Quadratic Equations, Arithmetic Progressions, Trigonometry & Coordinate Geometry.'
-      },
-      {
-        'id': 2,
-        'name': 'Science & Physics',
-        'code': 'SCI-10',
-        'teacher_name': 'Prof. Arvind Patil',
-        'teacher_department': 'Department of Physics',
-        'teacher_qualification': 'M.Sc., B.Ed.',
-        'teacher_phone': '+91 94222 84461',
-        'notes_count': 4,
-        'assignments_count': 1,
-        'syllabus_info': 'Light Reflection and Refraction, Human Eye & Colorful World, Electricity, Magnetic Effects of Electric Current.'
-      },
-      {
-        'id': 3,
-        'name': 'English Literature',
-        'code': 'ENG-10',
-        'teacher_name': 'Mrs. Sunita Rao',
-        'teacher_department': 'Department of Languages',
-        'teacher_qualification': 'M.A. English, B.Ed.',
-        'teacher_phone': '+91 98810 54321',
-        'notes_count': 3,
-        'assignments_count': 1,
-        'syllabus_info': 'First Flight: A Letter to God, Nelson Mandela, Two Stories about Flying, From the Diary of Anne Frank, Poetry & Grammar.'
-      },
-      {
-        'id': 4,
-        'name': 'Social Science & Civics',
-        'code': 'SST-10',
-        'teacher_name': 'Mr. D. S. More',
-        'teacher_department': 'Department of Humanities',
-        'teacher_qualification': 'M.A. History',
-        'teacher_phone': '+91 97654 12345',
-        'notes_count': 2,
-        'assignments_count': 1,
-        'syllabus_info': 'Rise of Nationalism in Europe, Resources and Development, Power Sharing, Federalism, Money and Credit.'
-      },
-      {
-        'id': 5,
-        'name': 'Computer Applications',
-        'code': 'COMP-10',
-        'teacher_name': 'Er. Vivek Kulkarni',
-        'teacher_department': 'Computer Science Department',
-        'teacher_qualification': 'B.Tech CSE',
-        'teacher_phone': '+91 91580 99887',
-        'notes_count': 3,
-        'assignments_count': 1,
-        'syllabus_info': 'Python Programming Basics, Web Design with HTML/CSS, Cyber Safety & Ethics, Database Management Basics.'
-      }
-    ];
+  /// Shift Academic Year / Promote Students (Admin - Critical requested feature!)
+  Future<Map<String, dynamic>> shiftAcademicYear({
+    required String sourceClass,
+    required String targetClass,
+    String? targetYear,
+    List<int>? studentIds,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/academic_year.php'),
+      headers: _headers(),
+      body: jsonEncode({
+        'action': 'promote_students',
+        'source_class': sourceClass,
+        'target_class': targetClass,
+        'target_year': targetYear,
+        'student_ids': studentIds ?? [],
+      }),
+    ).timeout(const Duration(seconds: 12));
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      return body['data'];
+    }
+    throw Exception('Failed to promote students: ${response.body}');
   }
 
-  List<dynamic> _offlineNotes(String? subject) {
-    return [
-      {
-        'id': 101,
-        'title': 'Quadratic Equations & Polynomials Summary Formula Sheet',
-        'subject': subject ?? 'Mathematics',
-        'class': 'Class 10',
-        'teacher_name': 'Prof. Arvind Patil',
-        'file_name': 'Math_Formula_Handbook_2026.pdf',
-        'file_type': 'pdf',
-        'file_size': 2450000,
-        'description': 'Comprehensive formula summary, discriminant criteria, and previous board exam questions.',
-        'created_at': '2026-10-18'
-      },
-      {
-        'id': 102,
-        'title': 'Electricity & Magnetic Fields Numericals with Step Proofs',
-        'subject': subject ?? 'Science & Physics',
-        'class': 'Class 10',
-        'teacher_name': 'Prof. Arvind Patil',
-        'file_name': 'Physics_Electricity_Guide.pdf',
-        'file_type': 'pdf',
-        'file_size': 3120000,
-        'description': 'Ohm law practical problems, equivalent resistance of series/parallel combinations.',
-        'created_at': '2026-10-15'
-      },
-      {
-        'id': 103,
-        'title': 'English First Flight Poetic Devices and Character Sketches',
-        'subject': subject ?? 'English Literature',
-        'class': 'Class 10',
-        'teacher_name': 'Mrs. Sunita Rao',
-        'file_name': 'English_FirstFlight_Revision.pdf',
-        'file_type': 'pdf',
-        'file_size': 1850000,
-        'description': 'Important questions, central themes, and model answers for board exams.',
-        'created_at': '2026-10-12'
-      }
-    ];
+  /// Update Global Academic Year Calendar (Admin)
+  Future<bool> updateAcademicYear(String newYear) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/academic_year.php'),
+      headers: _headers(),
+      body: jsonEncode({
+        'action': 'update_year',
+        'academic_year': newYear,
+      }),
+    ).timeout(const Duration(seconds: 10));
+
+    return response.statusCode == 200;
   }
 
-  List<dynamic> _offlineAssignments() {
-    return [
-      {
-        'id': 1,
-        'title': 'Quadratic Equations & Arithmetic Progressions Exercise',
-        'subject': 'Mathematics',
-        'due_date': '2026-10-30',
-        'max_marks': 25,
-        'submission_status': 'Submitted',
-        'marks_obtained': 24,
-        'teacher_feedback': 'Excellent mathematical presentation and clarity.',
-        'description': 'Solve NCERT Chapter 4 Questions 1 to 15 with complete step-by-step proofs.'
-      },
-      {
-        'id': 2,
-        'title': 'Light Reflection and Refraction Ray Diagrams Practice',
-        'subject': 'Science & Physics',
-        'due_date': '2026-11-05',
-        'max_marks': 20,
-        'submission_status': 'Pending',
-        'description': 'Draw spherical mirror ray diagrams and compute focal length problems with sign conventions.'
-      },
-      {
-        'id': 3,
-        'title': 'English Essay: Role of Youth in Digital Nation Building',
-        'subject': 'English Literature',
-        'due_date': '2026-11-08',
-        'max_marks': 20,
-        'submission_status': 'Pending',
-        'description': 'Write a 300-word argumentative essay highlighting technology, ethics, and innovation.'
-      }
-    ];
+  /// Fetch School Settings & Branding
+  Future<Map<String, dynamic>> fetchSettings() async {
+    final response = await http.get(
+      Uri.parse('$_baseUrl/settings.php'),
+      headers: _headers(),
+    ).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      if (body['success'] == true) return body['data']['settings'] ?? {};
+    }
+    throw Exception('Failed to load settings: HTTP ${response.statusCode}');
   }
 
-  Map<String, dynamic> _offlineFees() {
-    return {
-      'summary': {
-        'total_billed': 39000.0,
-        'total_paid': 13000.0,
-        'due_amount': 26000.0,
-        'pending_invoices_count': 1
-      },
-      'invoices': [
-        {
-          'id': 101,
-          'invoice_no': 'INV-2026-101',
-          'title': 'First Term Academic Fee 2026-27',
-          'tuition_fee': 18000.0,
-          'lab_fee': 3500.0,
-          'library_fee': 1500.0,
-          'sports_fee': 2000.0,
-          'exam_fee': 1000.0,
-          'total_amount': 26000.0,
-          'due_date': '2026-11-15',
-          'status': 'Unpaid'
-        },
-        {
-          'id': 88,
-          'invoice_no': 'INV-2026-088',
-          'title': 'Admission & Annual Registration Fee',
-          'tuition_fee': 10000.0,
-          'lab_fee': 0.0,
-          'library_fee': 1000.0,
-          'sports_fee': 1500.0,
-          'exam_fee': 500.0,
-          'total_amount': 13000.0,
-          'due_date': '2026-06-30',
-          'status': 'Paid'
-        }
-      ],
-      'payments': [
-        {
-          'receipt_no': 'REC-2026-0982',
-          'invoice_title': 'Admission & Annual Registration Fee',
-          'amount_paid': 13000.0,
-          'payment_mode': 'UPI',
-          'transaction_ref': 'TXN998471203',
-          'payment_date': '2026-06-28 11:20:00'
-        }
-      ]
-    };
-  }
+  /// Update School Settings & Branding (Changes reflect across whole web and mobile ERP)
+  Future<bool> updateSettings(Map<String, String> settings) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/settings.php'),
+      headers: _headers(),
+      body: jsonEncode(settings),
+    ).timeout(const Duration(seconds: 10));
 
-  Map<String, dynamic> _offlineMarks() {
-    return {
-      'overall_percentage': 91.4,
-      'total_exams': 2,
-      'exams': [
-        {
-          'exam_name': 'Mid-Term Examination 2026',
-          'total_obtained': 457.0,
-          'total_max': 500.0,
-          'percentage': 91.4,
-          'subjects': [
-            {'subject': 'Mathematics', 'marks_obtained': 94, 'max_marks': 100, 'grade': 'A+', 'remarks': 'Outstanding algebra & geometry proofs'},
-            {'subject': 'Science & Physics', 'marks_obtained': 91, 'max_marks': 100, 'grade': 'A+', 'remarks': 'Excellent conceptual clarity'},
-            {'subject': 'Computer Applications', 'marks_obtained': 96, 'max_marks': 100, 'grade': 'A+', 'remarks': 'Flawless code logic & practical'},
-            {'subject': 'Social Studies & Civics', 'marks_obtained': 89, 'max_marks': 100, 'grade': 'A', 'remarks': 'Very good map work and analysis'},
-            {'subject': 'English Literature', 'marks_obtained': 87, 'max_marks': 100, 'grade': 'A', 'remarks': 'Rich vocabulary and expression'}
-          ]
-        },
-        {
-          'exam_name': 'Unit Test 1',
-          'total_obtained': 47.0,
-          'total_max': 50.0,
-          'percentage': 94.0,
-          'subjects': [
-            {'subject': 'Mathematics', 'marks_obtained': 24, 'max_marks': 25, 'grade': 'A+', 'remarks': 'Top scorer'},
-            {'subject': 'Science & Physics', 'marks_obtained': 23, 'max_marks': 25, 'grade': 'A+', 'remarks': 'Precise formulas'}
-          ]
-        }
-      ]
-    };
-  }
-
-  Map<String, dynamic> _offlineTimetable() {
-    return {
-      'current_day': 'Monday',
-      'days': {
-        'Monday': [
-          {'period_number': 1, 'time_slot': '08:00 AM - 08:45 AM', 'subject': 'Mathematics', 'teacher_name': 'Prof. Arvind Patil', 'room_no': 'Room 101'},
-          {'period_number': 2, 'time_slot': '08:45 AM - 09:30 AM', 'subject': 'Science & Physics', 'teacher_name': 'Prof. Arvind Patil', 'room_no': 'Lab 1'},
-          {'period_number': 3, 'time_slot': '09:45 AM - 10:30 AM', 'subject': 'English Literature', 'teacher_name': 'Mrs. Sunita Rao', 'room_no': 'Room 101'},
-          {'period_number': 4, 'time_slot': '10:30 AM - 11:15 AM', 'subject': 'Social Studies & Civics', 'teacher_name': 'Mr. D. S. More', 'room_no': 'Room 101'},
-          {'period_number': 5, 'time_slot': '11:45 AM - 12:30 PM', 'subject': 'Computer Applications', 'teacher_name': 'Er. Vivek Kulkarni', 'room_no': 'Computer Lab'},
-          {'period_number': 6, 'time_slot': '12:30 PM - 01:15 PM', 'subject': 'Physical Education & Games', 'teacher_name': 'Coach S. Jadhav', 'room_no': 'Playground'}
-        ],
-        'Tuesday': [
-          {'period_number': 1, 'time_slot': '08:00 AM - 08:45 AM', 'subject': 'Science & Chemistry', 'teacher_name': 'Prof. Arvind Patil', 'room_no': 'Lab 1'},
-          {'period_number': 2, 'time_slot': '08:45 AM - 09:30 AM', 'subject': 'Mathematics', 'teacher_name': 'Prof. Arvind Patil', 'room_no': 'Room 101'},
-          {'period_number': 3, 'time_slot': '09:45 AM - 10:30 AM', 'subject': 'Hindi Language', 'teacher_name': 'Mrs. M. V. Joshi', 'room_no': 'Room 101'},
-          {'period_number': 4, 'time_slot': '10:30 AM - 11:15 AM', 'subject': 'English Grammar', 'teacher_name': 'Mrs. Sunita Rao', 'room_no': 'Room 101'}
-        ],
-        'Wednesday': [
-          {'period_number': 1, 'time_slot': '08:00 AM - 08:45 AM', 'subject': 'Mathematics', 'teacher_name': 'Prof. Arvind Patil', 'room_no': 'Room 101'},
-          {'period_number': 2, 'time_slot': '08:45 AM - 09:30 AM', 'subject': 'Science & Biology', 'teacher_name': 'Prof. Arvind Patil', 'room_no': 'Lab 2'},
-          {'period_number': 3, 'time_slot': '09:45 AM - 10:30 AM', 'subject': 'Social Studies & History', 'teacher_name': 'Mr. D. S. More', 'room_no': 'Room 101'}
-        ],
-        'Thursday': [
-          {'period_number': 1, 'time_slot': '08:00 AM - 08:45 AM', 'subject': 'Social Studies & Geography', 'teacher_name': 'Mr. D. S. More', 'room_no': 'Room 101'},
-          {'period_number': 2, 'time_slot': '08:45 AM - 09:30 AM', 'subject': 'Mathematics', 'teacher_name': 'Prof. Arvind Patil', 'room_no': 'Room 101'}
-        ],
-        'Friday': [
-          {'period_number': 1, 'time_slot': '08:00 AM - 08:45 AM', 'subject': 'Science Practical Lab', 'teacher_name': 'Prof. Arvind Patil', 'room_no': 'Lab 1'},
-          {'period_number': 2, 'time_slot': '08:45 AM - 09:30 AM', 'subject': 'Library & Reading Room', 'teacher_name': 'Mrs. Sunita Rao', 'room_no': 'Library'}
-        ],
-        'Saturday': [
-          {'period_number': 1, 'time_slot': '08:00 AM - 09:00 AM', 'subject': 'Art & Craft Club', 'teacher_name': 'Mr. K. R. Salunke', 'room_no': 'Studio'},
-          {'period_number': 2, 'time_slot': '09:00 AM - 10:00 AM', 'subject': 'Sports & Yoga Drill', 'teacher_name': 'Coach S. Jadhav', 'room_no': 'Grounds'}
-        ]
-      }
-    };
-  }
-
-  Map<String, dynamic> _offlineTransport() {
-    return {
-      'routes': [
-        {
-          'route_name': 'City Center & Station Road Express',
-          'bus_no': 'MH-39-AZ-8446',
-          'driver_name': 'Ramesh Patil',
-          'driver_phone': '+91 94222 18446',
-          'attendant_name': 'Sunita Shinde',
-          'attendant_phone': '+91 98810 54321',
-          'current_status': 'On Route to School',
-          'speed': '34 km/h',
-          'next_stop': 'Shroff High School Square',
-          'eta': '07:42 AM',
-          'stops': [
-            {'name': 'Nandurbar Railway Station', 'time': '07:15 AM', 'status': 'Completed'},
-            {'name': 'Subhash Chowk', 'time': '07:25 AM', 'status': 'Completed'},
-            {'name': 'Shroff High School Square', 'time': '07:42 AM', 'status': 'Approaching'},
-            {'name': 'Old Nalwa Road Junction', 'time': '07:55 AM', 'status': 'Pending'},
-            {'name': 'Bellwether International School Campus', 'time': '08:05 AM', 'status': 'Pending'}
-          ]
-        }
-      ]
-    };
-  }
-
-  List<dynamic> _offlineLeaves() {
-    return [
-      {
-        'id': 1,
-        'leave_type': 'Medical Leave',
-        'from_date': '2026-10-18',
-        'to_date': '2026-10-19',
-        'reason': 'Viral fever and prescribed doctor rest.',
-        'status': 'Approved',
-        'admin_remarks': 'Approved by Class Teacher Prof. Arvind Patil.'
-      }
-    ];
-  }
-
-  List<dynamic> _offlineNotices() {
-    return [
-      {
-        'id': 1,
-        'title': 'Annual Sports Meet & Inter-House Championship 2026',
-        'category': 'Sports',
-        'content': 'The Annual Athletics and Inter-House Sports Championship will be held on 18th November 2026 on the main campus sports ground. Parents are cordially invited.',
-        'created_at': '2026-10-20'
-      },
-      {
-        'id': 2,
-        'title': 'Mid-Term Examination Marksheets & Parent-Teacher Meeting (PTM)',
-        'category': 'Academic',
-        'content': 'Parent-Teacher Meeting for Class 1 to 12 will take place on Saturday from 09:00 AM to 01:00 PM. Digital marksheets are available on the mobile app.',
-        'created_at': '2026-10-18'
-      },
-      {
-        'id': 3,
-        'title': 'Diwali Vacation Schedule & Campus Re-opening Circular',
-        'category': 'Holidays',
-        'content': 'The school will observe Diwali vacations from 28th October to 10th November 2026. All academic classes will resume in full uniform on 11th November.',
-        'created_at': '2026-10-15'
-      }
-    ];
+    return response.statusCode == 200;
   }
 }

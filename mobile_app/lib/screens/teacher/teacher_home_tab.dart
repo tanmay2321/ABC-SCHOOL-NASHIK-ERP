@@ -7,6 +7,7 @@ import 'teacher_attendance_screen.dart';
 import 'teacher_notes_screen.dart';
 import 'teacher_assignments_screen.dart';
 import 'teacher_leaves_screen.dart';
+import 'teacher_marks_screen.dart';
 import '../notices_screen.dart';
 import '../login_screen.dart';
 
@@ -221,6 +222,22 @@ class _TeacherHomeTabState extends State<TeacherHomeTab> {
                         ),
                       ),
                       const SizedBox(width: 12),
+                      Expanded(
+                        child: BentoCard(
+                          title: 'Marksheet Entry',
+                          subtitle: 'Grade Assessments',
+                          icon: Icons.grade_rounded,
+                          iconColor: AppTheme.rose,
+                          iconBg: AppTheme.roseLight,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TeacherMarksScreen())),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  Row(
+                    children: [
                       Expanded(
                         child: BentoCard(
                           title: 'Notice Board',

@@ -45,4 +45,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     ]);
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!in_array($role, ['admin', 'principal', 'vice_principal'])) {
+        api_error('Only administrators and school leadership can manage subjects.', 403);
+    }
+
+    $input = get_json_input();
+    $action = $input['action'] ?? 'create';
+
+    if ($action === 'create') {
+        $name = trim($input['name'] ?? '');
+        $class = trim($input['class'] ?? '');
+        $code = trim($input['code'] ?? strtoupper(substr($name, 0, 3) . rand(100, 999)));
+        $teacher_id = !empty($input['teacher_id']) ? (int)$input['teacher_id'] : null;
+        $syllabus = trim($input['syllabus'] ?? 'CBSE National Standard Curriculum 2026-27');
+
+        if (empty($name) || empty($class)) {
+            api_error('Subject Name and Class are required.');
+        }
+
+        $ins = $pdo->prepare("INSERT INTO subjects (name, code, class, teacher_id, syllabus) VALUES (:n, :c, :cls, :tid, :syl)");
+        $ins->execute([
+            'n' => $name,
+            'c' => $code,
+            'cls' => $class,
+            'tid' => $teacher_id,
+            'syl' => $syllabus
+        ]);
+
+        api_response([
+            'message' => "Subject {$name} for {$class} added successfully!",
+            'subject_id' => $pdo->lastInsertId()
+        ], 201);
+    }
+
+    if ($action === 'delete') {
+        $id = (int)($input['id'] ?? 0);
+        if ($id <= 0) api_error('Valid subject id is required.');
+
+        $pdo->prepare("DELETE FROM subjects WHERE id = :id")->execute(['id' => $id]);
+        api_response(['message' => 'Subject removed successfully.']);
+    }
+
+    api_error('Invalid action requested.');
+}
+
 api_error('Method Not Allowed', 405);

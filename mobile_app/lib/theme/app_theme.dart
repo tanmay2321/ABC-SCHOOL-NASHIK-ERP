@@ -22,10 +22,13 @@ class AppTheme {
   // Status & Module Colors
   static const Color emerald = Color(0xFF10B981);
   static const Color emeraldLight = Color(0xFFD1FAE5);
+  static const Color emeraldDark = Color(0xFF047857);
   static const Color rose = Color(0xFFEF4444);
   static const Color roseLight = Color(0xFFFEE2E2);
+  static const Color roseDark = Color(0xFFBE123C);
   static const Color amber = Color(0xFFF59E0B);
   static const Color amberLight = Color(0xFFFEF3C7);
+  static const Color amberDark = Color(0xFFB45309);
   static const Color cyan = Color(0xFF06B6D4);
   static const Color cyanLight = Color(0xFFCFFAFE);
   static const Color indigo = Color(0xFF6366F1);

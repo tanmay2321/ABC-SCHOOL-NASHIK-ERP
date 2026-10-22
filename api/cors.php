@@ -22,6 +22,25 @@ require_once __DIR__ . '/../config/db.php';
 
 define('API_SECRET_KEY', 'BWIS_NANDURBAR_ERP_SUPER_SECURE_TOKEN_SALT_2026');
 
+// Polyfill getallheaders() for CLI and built-in PHP server
+if (!function_exists('getallheaders')) {
+    function getallheaders() {
+        $headers = [];
+        foreach ($_SERVER as $name => $value) {
+            if (substr($name, 0, 5) == 'HTTP_') {
+                $headers[str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', substr($name, 5)))))] = $value;
+            } elseif ($name == 'CONTENT_TYPE') {
+                $headers['Content-Type'] = $value;
+            } elseif ($name == 'CONTENT_LENGTH') {
+                $headers['Content-Length'] = $value;
+            } elseif ($name == 'AUTHORIZATION' || $name == 'HTTP_AUTHORIZATION') {
+                $headers['Authorization'] = $value;
+            }
+        }
+        return $headers;
+    }
+}
+
 /**
  * Send JSON API response
  */
@@ -83,7 +102,7 @@ function generate_auth_token($user) {
  */
 function get_authenticated_user($pdo, $required_role = null) {
     $headers = getallheaders();
-    $auth = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+    $auth = $headers['Authorization'] ?? $headers['authorization'] ?? $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
     
     // Check Bearer Token
     if (preg_match('/Bearer\s+(\S+)/i', $auth, $matches)) {
@@ -161,6 +180,17 @@ function attach_user_profile($pdo, $user, $required_role = null) {
         $tStmt = $pdo->prepare("SELECT * FROM teachers WHERE user_id = :uid LIMIT 1");
         $tStmt->execute(['uid' => $user['id']]);
         $profile = $tStmt->fetch() ?: [];
+    } else {
+        $name = 'System Administrator';
+        if ($user['role'] === 'principal') {
+            $name = get_setting($pdo, 'principal_name', 'Dr. R. K. Sharma (Principal)');
+        } elseif ($user['role'] === 'vice_principal') {
+            $name = get_setting($pdo, 'vice_principal_name', 'Prof. S. M. Deshmukh (Vice Principal)');
+        }
+        $profile = [
+            'full_name' => $name,
+            'designation' => ucfirst(str_replace('_', ' ', $user['role']))
+        ];
     }
 
     $user['profile'] = $profile;

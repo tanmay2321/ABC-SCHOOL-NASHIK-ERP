@@ -19,6 +19,22 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _isLoading = false;
   String? _errorMessage;
+  bool? _isServerConnected;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkServer();
+  }
+
+  Future<void> _checkServer() async {
+    final ok = await ApiService().pingServer();
+    if (mounted) {
+      setState(() {
+        _isServerConnected = ok;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -76,6 +92,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _showServerSettings() {
     final serverController = TextEditingController(text: ApiService().baseUrl);
+    bool testing = false;
+    String? testResult;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -83,76 +102,128 @@ class _LoginScreenState extends State<LoginScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: 24,
-          right: 24,
-          top: 24,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'ERP Backend Server Settings',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Live ERP Server Connection',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'Syncs simultaneously with website database',
+                        style: TextStyle(fontSize: 11, color: AppTheme.slate600),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: serverController,
+                decoration: InputDecoration(
+                  labelText: 'API Endpoint URL',
+                  hintText: 'http://192.168.31.187:8000/api',
+                  prefixIcon: const Icon(Icons.dns_rounded),
+                  suffixIcon: IconButton(
+                    icon: testing
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.refresh_rounded),
+                    tooltip: 'Test Connection',
+                    onPressed: () async {
+                      setSheetState(() {
+                        testing = true;
+                        testResult = null;
+                      });
+                      final ok = await ApiService().pingServer(serverController.text.trim());
+                      setSheetState(() {
+                        testing = false;
+                        testResult = ok
+                            ? 'Server is Online & Responding!'
+                            : 'Could not connect. Verify PHP server is running on this IP.';
+                      });
+                    },
+                  ),
                 ),
-                IconButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  icon: const Icon(Icons.close),
+              ),
+              if (testResult != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  testResult!,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: testResult!.contains('Online') ? AppTheme.emerald : AppTheme.rose,
+                  ),
                 ),
               ],
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Enter the URL of your PHP backend API. Mobile and Web apps sync with the same database.',
-              style: TextStyle(fontSize: 12, color: AppTheme.slate600),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: serverController,
-              decoration: const InputDecoration(
-                labelText: 'API Endpoint URL',
-                hintText: 'http://localhost:8000/api',
-                prefixIcon: Icon(Icons.dns_rounded),
+              const SizedBox(height: 14),
+              const Text('Quick Presets for Testing:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.slate600)),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  ActionChip(
+                    avatar: const Icon(Icons.wifi, size: 14, color: AppTheme.navyMedium),
+                    label: const Text('Phone Wi-Fi (192.168.31.187)', style: TextStyle(fontSize: 11)),
+                    onPressed: () => serverController.text = 'http://192.168.31.187:8000/api',
+                  ),
+                  ActionChip(
+                    avatar: const Icon(Icons.laptop, size: 14, color: AppTheme.navyMedium),
+                    label: const Text('Localhost (Chrome / PC)', style: TextStyle(fontSize: 11)),
+                    onPressed: () => serverController.text = 'http://localhost:8000/api',
+                  ),
+                  ActionChip(
+                    avatar: const Icon(Icons.phone_android, size: 14, color: AppTheme.navyMedium),
+                    label: const Text('Android Emulator (10.0.2.2)', style: TextStyle(fontSize: 11)),
+                    onPressed: () => serverController.text = 'http://10.0.2.2:8000/api',
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              children: [
-                ActionChip(
-                  label: const Text('Localhost (Web/Desktop)', style: TextStyle(fontSize: 11)),
-                  onPressed: () => serverController.text = 'http://localhost:8000/api',
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.navyDark,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () async {
+                    await ApiService().setBaseUrl(serverController.text.trim());
+                    await _checkServer();
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('ERP Server updated to: ${ApiService().baseUrl}')),
+                      );
+                    }
+                  },
+                  child: const Text('Save & Connect', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
-                ActionChip(
-                  label: const Text('Android Emulator (10.0.2.2)', style: TextStyle(fontSize: 11)),
-                  onPressed: () => serverController.text = 'http://10.0.2.2:8000/api',
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: () async {
-                  await ApiService().setBaseUrl(serverController.text.trim());
-                  if (ctx.mounted) Navigator.pop(ctx);
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Server endpoint set to: ${ApiService().baseUrl}')),
-                    );
-                  }
-                },
-                child: const Text('Save & Reconnect'),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -203,46 +274,105 @@ class _LoginScreenState extends State<LoginScreen> {
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // School Emblem & Branding
+                    // Server Connection Indicator Pill
+                    InkWell(
+                      onTap: _showServerSettings,
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: _isServerConnected == true
+                                ? AppTheme.emerald.withValues(alpha: 0.6)
+                                : (_isServerConnected == false
+                                    ? AppTheme.rose.withValues(alpha: 0.6)
+                                    : Colors.white24),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: _isServerConnected == true
+                                    ? AppTheme.emerald
+                                    : (_isServerConnected == false ? AppTheme.rose : Colors.amber),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _isServerConnected == true
+                                  ? 'Connected to Live ERP Server'
+                                  : (_isServerConnected == false
+                                      ? 'Server Disconnected • Tap to configure'
+                                      : 'Connecting to Server...'),
+                              style: TextStyle(
+                                color: _isServerConnected == true
+                                    ? AppTheme.emeraldLight
+                                    : (_isServerConnected == false ? AppTheme.roseLight : Colors.white70),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Icon(Icons.settings, color: Colors.white60, size: 14),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // School Crest & Title
                     Container(
-                      width: 80,
-                      height: 80,
+                      width: 76,
+                      height: 76,
                       decoration: BoxDecoration(
-                        gradient: AppTheme.goldGradient,
-                        shape: BoxShape.circle,
+                        gradient: const LinearGradient(
+                          colors: [AppTheme.gold, AppTheme.goldLight],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(22),
                         boxShadow: [
                           BoxShadow(
                             color: AppTheme.gold.withValues(alpha: 0.35),
-                            blurRadius: 24,
+                            blurRadius: 20,
                             offset: const Offset(0, 8),
                           ),
                         ],
                       ),
                       child: const Center(
-                        child: Icon(Icons.school_rounded, color: AppTheme.navyDark, size: 44),
+                        child: Icon(Icons.school_rounded, color: AppTheme.navyDark, size: 42),
                       ),
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 14),
                     const Text(
-                      'BELLWETHER',
+                      'BELLWETHER INTERNATIONAL SCHOOL',
+                      textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 24,
+                        fontSize: 15,
                         fontWeight: FontWeight.w900,
-                        letterSpacing: 2,
+                        letterSpacing: 1.2,
                       ),
                     ),
                     const Text(
-                      'INTERNATIONAL SCHOOL • NANDURBAR',
+                      'NANDURBAR • MAHARASHTRA',
+                      textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: AppTheme.gold,
+                        color: AppTheme.goldLight,
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        letterSpacing: 1.5,
+                        letterSpacing: 1.8,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -250,7 +380,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       'Unified Smart Cloud ERP & Mobile App',
                       style: TextStyle(color: Colors.white60, fontSize: 12),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 24),
 
                     // Login Card
                     Container(
@@ -381,9 +511,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const SizedBox(height: 24),
 
-                    // Quick 1-Tap Demo Switcher Pills
+                    // Quick 1-Tap Real Accounts Pills
                     const Text(
-                      'QUICK DEMO ACCOUNTS (1-TAP SIGN IN)',
+                      'REAL SCHOOL ACCOUNTS (1-TAP AUTOFILL)',
                       style: TextStyle(
                         color: Colors.white54,
                         fontSize: 10,
@@ -404,15 +534,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 18),
 
                     // Server Settings Gear Button
                     TextButton.icon(
                       onPressed: _showServerSettings,
-                      icon: const Icon(Icons.settings_ethernet_rounded, color: Colors.white54, size: 16),
-                      label: const Text(
-                        'Backend Server Configuration',
-                        style: TextStyle(color: Colors.white54, fontSize: 11),
+                      icon: const Icon(Icons.settings_ethernet_rounded, color: Colors.white60, size: 16),
+                      label: Text(
+                        'Server URL: ${ApiService().baseUrl}',
+                        style: const TextStyle(color: Colors.white60, fontSize: 11),
                       ),
                     ),
                   ],
