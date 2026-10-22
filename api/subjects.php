@@ -10,17 +10,22 @@ $role = $user['role'];
 $profile = $user['profile'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    $class = $_GET['class'] ?? ($profile['class'] ?? 'Class 10');
+    $class = $_GET['class'] ?? ($profile['class'] ?? 'Class 10-A');
+    $base_class = trim(explode('-', $class)[0]);
 
     if ($role === 'teacher') {
         $teacher_id = $profile['id'] ?? 0;
         $stmt = $pdo->prepare("SELECT s.*, 
-            (SELECT COUNT(*) FROM study_notes n WHERE n.class = s.class AND n.subject = s.name) as notes_count,
-            (SELECT COUNT(*) FROM assignments a WHERE a.class = s.class AND a.subject = s.name) as assignments_count
+            (SELECT COUNT(*) FROM study_notes n WHERE (n.class = s.class OR n.class = :base_cls) AND (LOWER(TRIM(n.subject)) = LOWER(TRIM(s.name)))) as notes_count,
+            (SELECT COUNT(*) FROM assignments a WHERE (a.class = s.class OR a.class = :base_cls) AND (LOWER(TRIM(a.subject)) = LOWER(TRIM(s.name)))) as assignments_count
             FROM subjects s
-            WHERE s.teacher_id = :tid OR s.class = :cls
+            WHERE s.teacher_id = :tid OR s.class = :cls OR s.class = :base_cls OR :cls LIKE (s.class || '-%')
             ORDER BY s.class ASC, s.name ASC");
-        $stmt->execute(['tid' => $teacher_id, 'cls' => $profile['assigned_class'] ?? 'Class 10']);
+        $stmt->execute([
+            'tid' => $teacher_id, 
+            'cls' => $profile['assigned_class'] ?? $class,
+            'base_cls' => $base_class
+        ]);
         $subjects = $stmt->fetchAll();
 
     } else {
@@ -28,14 +33,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $stmt = $pdo->prepare("SELECT s.*, 
             t.full_name as teacher_name, t.photo as teacher_photo, t.department as teacher_department, 
             t.designation as teacher_designation, t.qualification as teacher_qualification, t.phone as teacher_phone,
-            (SELECT COUNT(*) FROM study_notes n WHERE n.class = s.class AND n.subject = s.name) as notes_count,
-            (SELECT COUNT(*) FROM assignments a WHERE a.class = s.class AND a.subject = s.name) as assignments_count
+            (SELECT COUNT(*) FROM study_notes n WHERE (n.class = s.class OR n.class = :base_cls) AND (LOWER(TRIM(n.subject)) = LOWER(TRIM(s.name)))) as notes_count,
+            (SELECT COUNT(*) FROM assignments a WHERE (a.class = s.class OR a.class = :base_cls) AND (LOWER(TRIM(a.subject)) = LOWER(TRIM(s.name)))) as assignments_count
             FROM subjects s
             LEFT JOIN teachers t ON s.teacher_id = t.id
-            WHERE s.class = :cls
+            WHERE s.class = :cls OR s.class = :base_cls OR :cls LIKE (s.class || '-%')
             ORDER BY s.name ASC");
-        $stmt->execute(['cls' => $class]);
+        $stmt->execute(['cls' => $class, 'base_cls' => $base_class]);
         $subjects = $stmt->fetchAll();
+
+        // If no subjects found for specific division, fallback to grade level subjects
+        if (empty($subjects) && $class !== 'Class 10-A') {
+            $stmt = $pdo->prepare("SELECT s.*, 
+                t.full_name as teacher_name, t.photo as teacher_photo, t.department as teacher_department, 
+                t.designation as teacher_designation, t.qualification as teacher_qualification, t.phone as teacher_phone,
+                (SELECT COUNT(*) FROM study_notes n WHERE n.class = s.class AND (LOWER(TRIM(n.subject)) = LOWER(TRIM(s.name)))) as notes_count,
+                (SELECT COUNT(*) FROM assignments a WHERE a.class = s.class AND (LOWER(TRIM(a.subject)) = LOWER(TRIM(s.name)))) as assignments_count
+                FROM subjects s
+                LEFT JOIN teachers t ON s.teacher_id = t.id
+                WHERE s.class = 'Class 10-A' OR s.class = 'Grade 10'
+                ORDER BY s.name ASC");
+            $stmt->execute();
+            $subjects = $stmt->fetchAll();
+        }
     }
 
     api_response([
@@ -64,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             api_error('Subject Name and Class are required.');
         }
 
-        $ins = $pdo->prepare("INSERT INTO subjects (name, code, class, teacher_id, syllabus) VALUES (:n, :c, :cls, :tid, :syl)");
+        $ins = $pdo->prepare("INSERT INTO subjects (name, code, class, teacher_id, syllabus_info) VALUES (:n, :c, :cls, :tid, :syl)");
         $ins->execute([
             'n' => $name,
             'c' => $code,

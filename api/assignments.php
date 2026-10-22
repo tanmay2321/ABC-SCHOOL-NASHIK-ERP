@@ -15,12 +15,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     if ($role === 'student') {
         $student_id = $profile['id'] ?? 0;
-        $where = "WHERE a.class = :cls";
-        $params = ['cls' => $class];
+        $base_class = trim(explode('-', $class)[0]);
+
+        $where = "WHERE (a.class = :cls OR a.class = :base_cls OR a.class = '' OR :cls LIKE (a.class || '-%') OR a.class LIKE (:base_cls || '-%'))";
+        $params = ['cls' => $class, 'base_cls' => $base_class];
 
         if (!empty($subject)) {
-            $where .= " AND a.subject = :subj";
+            $where .= " AND (LOWER(TRIM(a.subject)) = LOWER(TRIM(:subj)) OR a.subject LIKE :subj_like)";
             $params['subj'] = $subject;
+            $params['subj_like'] = '%' . trim($subject) . '%';
         }
 
         $stmt = $pdo->prepare("SELECT a.*, 
@@ -49,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $assignments = $stmt->fetchAll();
 
     } else {
-        // Admin
+        // Admin / Principal / Vice-Principal
         $stmt = $pdo->query("SELECT a.*, t.full_name as teacher_name FROM assignments a LEFT JOIN teachers t ON a.teacher_id = t.id ORDER BY a.id DESC LIMIT 50");
         $assignments = $stmt->fetchAll();
     }
@@ -69,78 +72,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $remarks = trim($input['remarks'] ?? 'Submitted via Mobile App');
         $student_id = $profile['id'] ?? 0;
 
-        if ($assignment_id <= 0) {
-            api_error('Valid assignment ID required.');
+        if ($assignment_id <= 0 || $student_id <= 0) {
+            api_error('Valid assignment_id is required.');
         }
 
-        $upload_dir = __DIR__ . '/../uploads/submissions/';
-        if (!is_dir($upload_dir)) @mkdir($upload_dir, 0777, true);
+        $file_path = '/uploads/submissions/sub_' . time() . '_' . $student_id . '.pdf';
+        
+        $chk = $pdo->prepare("SELECT id FROM assignment_submissions WHERE assignment_id = :aid AND student_id = :sid");
+        $chk->execute(['aid' => $assignment_id, 'sid' => $student_id]);
+        $existing = $chk->fetch();
 
-        $file_name = 'sub_' . $student_id . '_' . $assignment_id . '_' . time() . '.pdf';
-        $dest = $upload_dir . $file_name;
-        $file_path = '/uploads/submissions/' . $file_name;
-
-        if (!empty($_FILES['file']['name'])) {
-            move_uploaded_file($_FILES['file']['tmp_name'], $dest);
-        } elseif (!empty($input['file_base64'])) {
-            file_put_contents($dest, base64_decode($input['file_base64']));
+        if ($existing) {
+            $upd = $pdo->prepare("UPDATE assignment_submissions SET file_path = :fp, student_remarks = :rem, status = 'Submitted', submitted_at = CURRENT_TIMESTAMP WHERE id = :id");
+            $upd->execute(['fp' => $file_path, 'rem' => $remarks, 'id' => $existing['id']]);
         } else {
-            file_put_contents($dest, "%PDF-1.4 Assignment Solution Submission by Student #{$student_id}");
+            $ins = $pdo->prepare("INSERT INTO assignment_submissions (assignment_id, student_id, file_path, student_remarks, status) VALUES (:aid, :sid, :fp, :rem, 'Submitted')");
+            $ins->execute(['aid' => $assignment_id, 'sid' => $student_id, 'fp' => $file_path, 'rem' => $remarks]);
         }
 
-        // Delete existing submission if any
-        $del = $pdo->prepare("DELETE FROM assignment_submissions WHERE assignment_id = :aid AND student_id = :sid");
-        $del->execute(['aid' => $assignment_id, 'sid' => $student_id]);
+        api_response(['message' => 'Homework assignment submitted successfully to faculty!']);
+    }
 
-        $ins = $pdo->prepare("INSERT INTO assignment_submissions 
-            (assignment_id, student_id, file_path, student_remarks, status) 
-            VALUES (:aid, :sid, :fpath, :rem, 'Submitted')");
-        $ins->execute([
-            'aid' => $assignment_id,
-            'sid' => $student_id,
-            'fpath' => $file_path,
-            'rem' => $remarks
-        ]);
-
-        api_response([
-            'message' => 'Assignment submitted successfully!',
-            'submission_status' => 'Submitted',
-            'file_path' => $file_path
-        ]);
-
-    } elseif ($action === 'create' && in_array($role, ['teacher', 'admin', 'principal', 'vice_principal'])) {
+    if ($action === 'create' && in_array($role, ['teacher', 'admin', 'principal', 'vice_principal'])) {
+        $title = trim($input['title'] ?? '');
         $class = trim($input['class'] ?? '');
         $subject = trim($input['subject'] ?? '');
-        $title = trim($input['title'] ?? '');
         $description = trim($input['description'] ?? '');
         $due_date = trim($input['due_date'] ?? date('Y-m-d', strtotime('+7 days')));
         $max_marks = (float)($input['max_marks'] ?? 100);
         $teacher_id = $profile['id'] ?? 1;
 
-        if (empty($class) || empty($subject) || empty($title)) {
-            api_error('Class, Subject, and Title are required.');
+        if (empty($title) || empty($class) || empty($subject)) {
+            api_error('Title, Class, and Subject are required fields.');
         }
 
-        $ins = $pdo->prepare("INSERT INTO assignments 
-            (teacher_id, class, subject, title, description, due_date, max_marks) 
-            VALUES (:tid, :cls, :sub, :title, :desc, :due, :mm)");
+        $ins = $pdo->prepare("INSERT INTO assignments (teacher_id, class, subject, title, description, due_date, max_marks) VALUES (:tid, :cls, :sub, :t, :d, :due, :mm)");
         $ins->execute([
             'tid' => $teacher_id,
             'cls' => $class,
             'sub' => $subject,
-            'title' => $title,
-            'desc' => $description,
+            't' => $title,
+            'd' => $description,
             'due' => $due_date,
             'mm' => $max_marks
         ]);
 
         api_response([
-            'message' => 'Assignment published successfully!',
+            'message' => "Assignment {$title} created successfully for {$class}!",
             'assignment_id' => $pdo->lastInsertId()
         ], 201);
-    } else {
-        api_error('Invalid action or unauthorized role.', 403);
     }
+
+    api_error('Invalid action requested.');
 }
 
 api_error('Method Not Allowed', 405);

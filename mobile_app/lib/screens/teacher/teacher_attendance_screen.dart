@@ -14,10 +14,10 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
   List<Map<String, dynamic>> _students = [];
   bool _isLoading = true;
   bool _isSaving = false;
-  String _selectedClass = 'Class 10';
+  String _selectedClass = 'Class 10-A';
   final String _date = DateTime.now().toString().split(' ')[0];
 
-  final List<String> _classList = ['Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'];
+  List<String> _classList = ApiService.standardClasses;
 
   @override
   void initState() {
@@ -27,7 +27,20 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     if (assigned != null && assigned.toString().isNotEmpty) {
       _selectedClass = assigned.toString();
     }
-    _loadClassRoster();
+    _loadClassesAndRoster();
+  }
+
+  Future<void> _loadClassesAndRoster() async {
+    final classes = await ApiService().fetchClasses();
+    if (mounted) {
+      setState(() {
+        _classList = classes;
+        if (!_classList.contains(_selectedClass)) {
+          _selectedClass = _classList.isNotEmpty ? _classList[0] : 'Class 10-A';
+        }
+      });
+      _loadClassRoster();
+    }
   }
 
   Future<void> _loadClassRoster() async {
@@ -113,7 +126,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('DAILY ATTENDANCE', style: TextStyle(color: AppTheme.gold, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
-            Text('Roll Call: $_selectedClass', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+            Text('Roll Call: $_selectedClass', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
           ],
         ),
         actions: [
@@ -126,57 +139,65 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
       ),
       body: Column(
         children: [
-          // Top Filter Bar: Class Dropdown & Quick Actions
+          // Top Responsive Filter & Actions Bar
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              children: [
-                const Text('Class: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                const SizedBox(width: 8),
-                DropdownButton<String>(
-                  value: _classList.contains(_selectedClass) ? _selectedClass : _classList[0],
-                  underline: const SizedBox(),
-                  style: const TextStyle(color: AppTheme.navyDark, fontWeight: FontWeight.bold, fontSize: 13),
-                  items: _classList.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                  onChanged: (v) {
-                    if (v != null) {
-                      setState(() => _selectedClass = v);
-                      _loadClassRoster();
-                    }
-                  },
-                ),
-                const Spacer(),
-                OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    side: const BorderSide(color: AppTheme.emerald),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  const Text('Division: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  const SizedBox(width: 6),
+                  DropdownButton<String>(
+                    value: _classList.contains(_selectedClass) ? _selectedClass : _classList[0],
+                    underline: const SizedBox(),
+                    style: const TextStyle(color: AppTheme.navyDark, fontWeight: FontWeight.bold, fontSize: 13),
+                    items: _classList.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                    onChanged: (v) {
+                      if (v != null) {
+                        setState(() => _selectedClass = v);
+                        _loadClassRoster();
+                      }
+                    },
                   ),
-                  onPressed: () => _markAll(true),
-                  child: const Text('All Present', style: TextStyle(color: AppTheme.emerald, fontSize: 11, fontWeight: FontWeight.bold)),
-                ),
-                const SizedBox(width: 6),
-                OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    side: const BorderSide(color: AppTheme.rose),
+                  const SizedBox(width: 14),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      side: const BorderSide(color: AppTheme.emerald),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    icon: const Icon(Icons.check, size: 14, color: AppTheme.emerald),
+                    label: const Text('All Present', style: TextStyle(color: AppTheme.emerald, fontSize: 11, fontWeight: FontWeight.bold)),
+                    onPressed: () => _markAll(true),
                   ),
-                  onPressed: () => _markAll(false),
-                  child: const Text('All Absent', style: TextStyle(color: AppTheme.rose, fontSize: 11, fontWeight: FontWeight.bold)),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      side: const BorderSide(color: AppTheme.rose),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    icon: const Icon(Icons.close, size: 14, color: AppTheme.rose),
+                    label: const Text('All Absent', style: TextStyle(color: AppTheme.rose, fontSize: 11, fontWeight: FontWeight.bold)),
+                    onPressed: () => _markAll(false),
+                  ),
+                ],
+              ),
             ),
           ),
 
-          // Stats Bar
+          // Responsive Stats Bar
           Container(
             color: AppTheme.slate50,
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _badge('TOTAL', '${_students.length}', AppTheme.navyMedium, AppTheme.indigoLight),
+                const SizedBox(width: 8),
                 _badge('PRESENT (TICKED)', '$presentCount', AppTheme.emerald, AppTheme.emeraldLight),
+                const SizedBox(width: 8),
                 _badge('ABSENT', '$absentCount', AppTheme.rose, AppTheme.roseLight),
               ],
             ),
@@ -199,15 +220,15 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                         ),
                       )
                     : ListView.builder(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         itemCount: _students.length,
                         itemBuilder: (ctx, idx) {
                           final s = _students[idx];
                           final isPresent = (s['attendance_status'] ?? 'Present') == 'Present';
 
                           return Container(
-                            margin: const EdgeInsets.only(bottom: 10),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(16),
@@ -218,55 +239,57 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                             ),
                             child: Row(
                               children: [
-                                // Checkbox: Tick = Present, No tick = Absent (Requested Feature)
-                                Transform.scale(
-                                  scale: 1.15,
-                                  child: Checkbox(
-                                    value: isPresent,
-                                    activeColor: AppTheme.emerald,
-                                    checkColor: Colors.white,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                                    onChanged: (val) => _toggleCheckbox(s, val),
-                                  ),
+                                // Tick Box
+                                Checkbox(
+                                  value: isPresent,
+                                  activeColor: AppTheme.emerald,
+                                  checkColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                  onChanged: (val) => _toggleCheckbox(s, val),
                                 ),
-                                const SizedBox(width: 6),
+                                const SizedBox(width: 4),
 
                                 // Roll Number
                                 Container(
-                                  width: 34,
-                                  height: 34,
+                                  width: 32,
+                                  height: 32,
                                   decoration: BoxDecoration(
                                     color: AppTheme.slate100,
-                                    borderRadius: BorderRadius.circular(10),
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
                                   alignment: Alignment.center,
                                   child: Text(
-                                    s['roll_no']?.toString() ?? '${idx + 1}',
+                                    s['roll_no']?.toString().isNotEmpty == true ? s['roll_no'].toString() : '${idx + 1}',
                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.navyDark),
                                   ),
                                 ),
-                                const SizedBox(width: 12),
+                                const SizedBox(width: 10),
 
-                                // Student Details
+                                // Student Details (Expanded to prevent overflow)
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         s['full_name'] ?? 'Student',
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.slate900),
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.slate900),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                       Text(
                                         'Code: ${s['student_code'] ?? "N/A"}',
-                                        style: const TextStyle(color: AppTheme.slate400, fontSize: 11),
+                                        style: const TextStyle(color: AppTheme.slate400, fontSize: 10),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ],
                                   ),
                                 ),
+                                const SizedBox(width: 8),
 
                                 // Status Badge
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
                                     color: isPresent ? AppTheme.emeraldLight : AppTheme.roseLight,
                                     borderRadius: BorderRadius.circular(8),
@@ -274,7 +297,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                                   child: Text(
                                     isPresent ? 'PRESENT' : 'ABSENT',
                                     style: TextStyle(
-                                      color: isPresent ? AppTheme.emeraldDark : AppTheme.roseDark,
+                                      color: isPresent ? AppTheme.emerald : AppTheme.rose,
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -289,7 +312,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
 
           // Bottom Save Button
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             decoration: const BoxDecoration(
               color: Colors.white,
               border: Border(top: BorderSide(color: AppTheme.slate200)),
@@ -312,14 +335,22 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
   }
 
   Widget _badge(String label, String value, Color color, Color bg) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        children: [
-          Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: color)),
-          Text(label, style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.w600)),
-        ],
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Column(
+              children: [
+                Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: color)),
+                Text(label, style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

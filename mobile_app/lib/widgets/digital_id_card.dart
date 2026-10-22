@@ -105,43 +105,52 @@ class _DigitalIdCardState extends State<DigitalIdCard> with SingleTickerProvider
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 34,
-                          height: 34,
-                          decoration: BoxDecoration(
-                            gradient: AppTheme.goldGradient,
-                            shape: BoxShape.circle,
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              gradient: AppTheme.goldGradient,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.school, color: AppTheme.navyDark, size: 18),
                           ),
-                          child: const Icon(Icons.school, color: AppTheme.navyDark, size: 18),
-                        ),
-                        const SizedBox(width: 10),
-                        const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'BELLWETHER INTERNATIONAL',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0.8,
-                              ),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'BELLWETHER INTERNATIONAL',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.8,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  'SCHOOL NANDURBAR • SMART ID',
+                                  style: TextStyle(
+                                    color: AppTheme.goldLight,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.2,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
                             ),
-                            Text(
-                              'SCHOOL NANDURBAR • SMART ID',
-                              style: TextStyle(
-                                color: AppTheme.goldLight,
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
@@ -342,19 +351,26 @@ class _DigitalIdCardState extends State<DigitalIdCard> with SingleTickerProvider
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Old Nalwa Road, Nandurbar - 425412',
-                      style: TextStyle(color: Colors.white54, fontSize: 9),
-                    ),
-                    Text(
-                      'Helpline: +91 6262848446',
-                      style: TextStyle(color: AppTheme.goldLight, fontSize: 9, fontWeight: FontWeight.bold),
-                    ),
-                  ],
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Old Nalwa Road, Nandurbar - 425412',
+                        style: TextStyle(color: Colors.white54, fontSize: 9),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        'Helpline: +91 6262848446',
+                        style: TextStyle(color: AppTheme.goldLight, fontSize: 9, fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [

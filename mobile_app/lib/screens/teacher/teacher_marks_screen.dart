@@ -11,14 +11,14 @@ class TeacherMarksScreen extends StatefulWidget {
 }
 
 class _TeacherMarksScreenState extends State<TeacherMarksScreen> {
-  String _selectedClass = 'Class 10';
+  String _selectedClass = 'Class 10-A';
   String _selectedExam = 'Mid-Term Examination 2026';
   String _selectedSubject = 'Mathematics';
   List<Map<String, dynamic>> _records = [];
   bool _isLoading = true;
   bool _isSaving = false;
 
-  final List<String> _classList = ['Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'];
+  List<String> _classList = ApiService.standardClasses;
   final List<String> _examList = [
     'Unit Test 1 (25 Marks)',
     'Mid-Term Examination 2026',
@@ -30,7 +30,8 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen> {
     'Science & Physics',
     'English Literature',
     'Computer Applications',
-    'Social Science'
+    'Social Science',
+    'Hindi'
   ];
 
   final Map<int, TextEditingController> _controllers = {};
@@ -38,7 +39,20 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen> {
   @override
   void initState() {
     super.initState();
-    _loadRoster();
+    _initClasses();
+  }
+
+  Future<void> _initClasses() async {
+    final classes = await ApiService().fetchClasses();
+    if (mounted) {
+      setState(() {
+        _classList = classes;
+        if (!_classList.contains(_selectedClass)) {
+          _selectedClass = _classList.isNotEmpty ? _classList[0] : 'Class 10-A';
+        }
+      });
+      _loadRoster();
+    }
   }
 
   @override
@@ -143,19 +157,20 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen> {
       ),
       body: Column(
         children: [
-          // Filter Header
+          // Filter Header (Responsive)
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             child: Column(
               children: [
                 Row(
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: _selectedClass,
-                        decoration: const InputDecoration(labelText: 'Class', isDense: true),
-                        items: _classList.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                        key: ValueKey('cls_$_selectedClass'),
+                        initialValue: _classList.contains(_selectedClass) ? _selectedClass : _classList[0],
+                        decoration: const InputDecoration(labelText: 'Class Division', isDense: true),
+                        items: _classList.map((c) => DropdownMenuItem(value: c, child: Text(c, overflow: TextOverflow.ellipsis))).toList(),
                         onChanged: (v) {
                           if (v != null) {
                             setState(() => _selectedClass = v);
@@ -167,6 +182,7 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: DropdownButtonFormField<String>(
+                        key: ValueKey('sub_$_selectedSubject'),
                         initialValue: _selectedSubject,
                         decoration: const InputDecoration(labelText: 'Subject', isDense: true),
                         items: _subjectList.map((s) => DropdownMenuItem(value: s, child: Text(s, overflow: TextOverflow.ellipsis))).toList(),
@@ -179,9 +195,10 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen> {
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
+                  key: ValueKey('ex_$_selectedExam'),
                   initialValue: _selectedExam,
                   decoration: const InputDecoration(labelText: 'Exam / Assessment', isDense: true),
-                  items: _examList.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                  items: _examList.map((e) => DropdownMenuItem(value: e, child: Text(e, overflow: TextOverflow.ellipsis))).toList(),
                   onChanged: (v) {
                     if (v != null) {
                       setState(() => _selectedExam = v);
@@ -210,7 +227,7 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen> {
                         ),
                       )
                     : ListView.builder(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         itemCount: _records.length,
                         itemBuilder: (ctx, idx) {
                           final r = _records[idx];
@@ -218,8 +235,8 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen> {
                           final ctrl = _controllers[sid];
 
                           return Container(
-                            margin: const EdgeInsets.only(bottom: 10),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(16),
@@ -236,23 +253,34 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen> {
                                   ),
                                   alignment: Alignment.center,
                                   child: Text(
-                                    r['roll_no']?.toString() ?? '${idx + 1}',
+                                    r['roll_no']?.toString().isNotEmpty == true ? r['roll_no'].toString() : '${idx + 1}',
                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.navyDark),
                                   ),
                                 ),
-                                const SizedBox(width: 12),
+                                const SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(r['full_name'] ?? 'Student', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                      Text('Code: ${r['student_code'] ?? "N/A"}', style: const TextStyle(fontSize: 10, color: AppTheme.slate400)),
+                                      Text(
+                                        r['full_name'] ?? 'Student',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Text(
+                                        'Code: ${r['student_code'] ?? "N/A"}',
+                                        style: const TextStyle(fontSize: 10, color: AppTheme.slate400),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ],
                                   ),
                                 ),
+                                const SizedBox(width: 8),
                                 SizedBox(
-                                  width: 90,
-                                  height: 44,
+                                  width: 80,
+                                  height: 42,
                                   child: TextField(
                                     controller: ctrl,
                                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -260,10 +288,10 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen> {
                                     decoration: InputDecoration(
                                       hintText: 'Marks',
                                       isDense: true,
-                                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
                                       suffixText: _selectedExam.contains('25') ? '/25' : '/100',
-                                      suffixStyle: const TextStyle(fontSize: 10, color: AppTheme.slate400),
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                      suffixStyle: const TextStyle(fontSize: 9, color: AppTheme.slate400),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                                     ),
                                   ),
                                 ),
@@ -276,7 +304,7 @@ class _TeacherMarksScreenState extends State<TeacherMarksScreen> {
 
           // Submit Button
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             decoration: const BoxDecoration(
               color: Colors.white,
               border: Border(top: BorderSide(color: AppTheme.slate200)),

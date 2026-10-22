@@ -17,12 +17,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $params = [];
 
     if (!empty($class)) {
-        $where .= " AND n.class = :cls";
+        $base_class = trim(explode('-', $class)[0]);
+        $where .= " AND (n.class = :cls OR n.class = :base_cls OR n.class = '' OR :cls LIKE (n.class || '-%') OR n.class LIKE (:base_cls || '-%'))";
         $params['cls'] = $class;
+        $params['base_cls'] = $base_class;
     }
     if (!empty($subject)) {
-        $where .= " AND n.subject = :subj";
+        $where .= " AND (LOWER(TRIM(n.subject)) = LOWER(TRIM(:subj)) OR n.subject LIKE :subj_like)";
         $params['subj'] = $subject;
+        $params['subj_like'] = '%' . trim($subject) . '%';
     }
 
     $stmt = $pdo->prepare("SELECT n.*, t.full_name as teacher_name, t.photo as teacher_photo 
@@ -62,10 +65,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $file_path = '';
     $file_name = 'course_notes.pdf';
-    $file_size = 0;
+    $file_size = 1024;
     $file_type = 'pdf';
 
-    // Check if multipart file uploaded
     if (!empty($_FILES['file']['name']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
         $orig_name = basename($_FILES['file']['name']);
         $ext = strtolower(pathinfo($orig_name, PATHINFO_EXTENSION));
@@ -78,48 +80,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (move_uploaded_file($_FILES['file']['tmp_name'], $dest)) {
             $file_path = '/uploads/notes/' . $new_name;
         }
-    } elseif (!empty($input['file_base64'])) {
-        // Base64 file upload from mobile client
-        $ext = strtolower($input['file_ext'] ?? 'pdf');
-        $file_name = $input['file_name'] ?? ('notes_' . time() . '.' . $ext);
-        $file_type = $ext;
-        $data = base64_decode($input['file_base64']);
-        $file_size = strlen($data);
-
-        $new_name = 'note_' . time() . '_' . rand(1000, 9999) . '.' . $ext;
-        $dest = $upload_dir . $new_name;
-        if (file_put_contents($dest, $data)) {
-            $file_path = '/uploads/notes/' . $new_name;
-        }
     } else {
-        // Default placeholder reference document
         $new_name = 'note_' . time() . '.pdf';
         $dest = $upload_dir . $new_name;
         file_put_contents($dest, "%PDF-1.4 Bellwether International School Study Notes Reference Material");
         $file_path = '/uploads/notes/' . $new_name;
-        $file_size = 1024;
     }
 
     $ins = $pdo->prepare("INSERT INTO study_notes 
-        (teacher_id, class, subject, title, description, file_path, file_name, file_size, file_type, academic_year) 
-        VALUES (:tid, :cls, :sub, :title, :desc, :fpath, :fname, :fsize, :ftype, :ay)");
+        (teacher_id, class, subject, title, description, file_path, file_name, file_size, file_type, academic_year)
+        VALUES (:tid, :cls, :sub, :t, :d, :fp, :fn, :fs, :ft, :ay)");
+    
     $ins->execute([
         'tid' => $teacher_id,
         'cls' => $class,
         'sub' => $subject,
-        'title' => $title,
-        'desc' => $description,
-        'fpath' => $file_path,
-        'fname' => $file_name,
-        'fsize' => $file_size,
-        'ftype' => $file_type,
-        'ay' => get_setting($pdo, 'academic_year', '2026-2027')
+        't' => $title,
+        'd' => $description,
+        'fp' => $file_path,
+        'fn' => $file_name,
+        'fs' => $file_size,
+        'ft' => $file_type,
+        'ay' => get_setting($pdo, 'current_academic_year', '2026-2027')
     ]);
 
     api_response([
-        'message' => 'Study notes uploaded and published successfully.',
-        'note_id' => $pdo->lastInsertId(),
-        'file_path' => $file_path
+        'message' => "Study notes '{$title}' published to LMS for {$class}!",
+        'note_id' => $pdo->lastInsertId()
     ], 201);
 }
 

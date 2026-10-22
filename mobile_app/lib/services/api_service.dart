@@ -13,6 +13,37 @@ class ApiService {
   static const String defaultWifiUrl = 'http://192.168.31.187:8000/api';
   static const String defaultLocalhostUrl = 'http://localhost:8000/api';
 
+  static const List<String> standardClasses = [
+    'Class 1-A', 'Class 1-B',
+    'Class 2-A', 'Class 2-B',
+    'Class 3-A', 'Class 3-B',
+    'Class 4-A', 'Class 4-B',
+    'Class 5-A', 'Class 5-B',
+    'Class 6-A', 'Class 6-B',
+    'Class 7-A', 'Class 7-B',
+    'Class 8-A', 'Class 8-B',
+    'Class 9-A', 'Class 9-B',
+    'Class 10-A', 'Class 10-B',
+    'Class 11-Science', 'Class 11-Commerce', 'Class 11-Arts',
+    'Class 12-Science', 'Class 12-Commerce', 'Class 12-Arts',
+  ];
+
+  Future<List<String>> fetchClasses() async {
+    try {
+      final res = await http.get(
+        Uri.parse('$_baseUrl/classes.php'),
+        headers: _headers(),
+      ).timeout(const Duration(seconds: 4));
+      if (res.statusCode == 200) {
+        final body = jsonDecode(res.body);
+        if (body['success'] == true && body['data']['classes'] is List) {
+          return List<String>.from(body['data']['classes']);
+        }
+      }
+    } catch (_) {}
+    return standardClasses;
+  }
+
   String _baseUrl = kIsWeb ? defaultLocalhostUrl : defaultWifiUrl;
   String? _token;
   UserModel? _currentUser;

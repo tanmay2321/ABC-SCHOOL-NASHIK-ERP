@@ -22,6 +22,8 @@ class _AdminNavScreenState extends State<AdminNavScreen> with SingleTickerProvid
   bool _isLoading = true;
   String _selectedClassFilter = 'All';
 
+  List<String> _classList = ApiService.standardClasses;
+
   @override
   void initState() {
     super.initState();
@@ -38,6 +40,7 @@ class _AdminNavScreenState extends State<AdminNavScreen> with SingleTickerProvid
   Future<void> _loadAllData() async {
     setState(() => _isLoading = true);
     try {
+      final classesFuture = ApiService().fetchClasses();
       final dashFuture = ApiService().fetchDashboard();
       final studentsFuture = ApiService().fetchStudents(
         studentClass: _selectedClassFilter == 'All' ? null : _selectedClassFilter,
@@ -52,6 +55,7 @@ class _AdminNavScreenState extends State<AdminNavScreen> with SingleTickerProvid
         teachersFuture,
         academicFuture,
         settingsFuture,
+        classesFuture,
       ]);
 
       if (mounted) {
@@ -61,6 +65,7 @@ class _AdminNavScreenState extends State<AdminNavScreen> with SingleTickerProvid
           _teachers = results[2] as List<dynamic>;
           _academicData = results[3] as Map<String, dynamic>;
           _settingsData = results[4] as Map<String, dynamic>;
+          _classList = results[5] as List<String>;
           _isLoading = false;
         });
       }
@@ -115,7 +120,7 @@ class _AdminNavScreenState extends State<AdminNavScreen> with SingleTickerProvid
   void _showAddStudentDialog() {
     final nameCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
-    final classCtrl = TextEditingController(text: 'Class 10');
+    String selectedClass = _classList.isNotEmpty ? _classList[0] : 'Class 10-A';
     final rollCtrl = TextEditingController();
     final guardianCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
@@ -123,62 +128,71 @@ class _AdminNavScreenState extends State<AdminNavScreen> with SingleTickerProvid
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Enroll New Student', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Full Name *')),
-              const SizedBox(height: 8),
-              TextField(controller: emailCtrl, decoration: const InputDecoration(labelText: 'Email Address *', hintText: 'student@edu.in')),
-              const SizedBox(height: 8),
-              TextField(controller: classCtrl, decoration: const InputDecoration(labelText: 'Class *', hintText: 'Class 10')),
-              const SizedBox(height: 8),
-              TextField(controller: rollCtrl, decoration: const InputDecoration(labelText: 'Roll Number (optional)')),
-              const SizedBox(height: 8),
-              TextField(controller: guardianCtrl, decoration: const InputDecoration(labelText: 'Guardian Name')),
-              const SizedBox(height: 8),
-              TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: 'Phone Number')),
-              const SizedBox(height: 8),
-              TextField(controller: addressCtrl, decoration: const InputDecoration(labelText: 'Address')),
-            ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDState) => AlertDialog(
+          title: const Text('Enroll New Student', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Full Name *')),
+                const SizedBox(height: 8),
+                TextField(controller: emailCtrl, decoration: const InputDecoration(labelText: 'Email Address *', hintText: 'student@edu.in')),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedClass,
+                  decoration: const InputDecoration(labelText: 'Class Division *'),
+                  items: _classList.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                  onChanged: (v) {
+                    if (v != null) setDState(() => selectedClass = v);
+                  },
+                ),
+                const SizedBox(height: 8),
+                TextField(controller: rollCtrl, decoration: const InputDecoration(labelText: 'Roll Number (optional)')),
+                const SizedBox(height: 8),
+                TextField(controller: guardianCtrl, decoration: const InputDecoration(labelText: 'Guardian Name')),
+                const SizedBox(height: 8),
+                TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: 'Phone Number')),
+                const SizedBox(height: 8),
+                TextField(controller: addressCtrl, decoration: const InputDecoration(labelText: 'Address')),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.navyDark, foregroundColor: Colors.white),
+              onPressed: () async {
+                if (nameCtrl.text.trim().isEmpty || emailCtrl.text.trim().isEmpty) return;
+                try {
+                  await ApiService().createStudent({
+                    'full_name': nameCtrl.text.trim(),
+                    'email': emailCtrl.text.trim(),
+                    'class': selectedClass,
+                    'roll_no': rollCtrl.text.trim(),
+                    'guardian_name': guardianCtrl.text.trim(),
+                    'phone': phoneCtrl.text.trim(),
+                    'address': addressCtrl.text.trim(),
+                  });
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  _loadAllData();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Enrolled ${nameCtrl.text.trim()} in $selectedClass!'), backgroundColor: AppTheme.emerald),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Enrollment failed: $e'), backgroundColor: AppTheme.rose),
+                    );
+                  }
+                }
+              },
+              child: const Text('Enroll Student'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.navyDark, foregroundColor: Colors.white),
-            onPressed: () async {
-              if (nameCtrl.text.trim().isEmpty || emailCtrl.text.trim().isEmpty) return;
-              try {
-                await ApiService().createStudent({
-                  'full_name': nameCtrl.text.trim(),
-                  'email': emailCtrl.text.trim(),
-                  'class': classCtrl.text.trim(),
-                  'roll_no': rollCtrl.text.trim(),
-                  'guardian_name': guardianCtrl.text.trim(),
-                  'phone': phoneCtrl.text.trim(),
-                  'address': addressCtrl.text.trim(),
-                });
-                if (ctx.mounted) Navigator.pop(ctx);
-                _loadAllData();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Enrolled ${nameCtrl.text.trim()} successfully!'), backgroundColor: AppTheme.emerald),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Enrollment failed: $e'), backgroundColor: AppTheme.rose),
-                  );
-                }
-              }
-            },
-            child: const Text('Enroll Student'),
-          ),
-        ],
       ),
     );
   }
@@ -188,128 +202,153 @@ class _AdminNavScreenState extends State<AdminNavScreen> with SingleTickerProvid
     final emailCtrl = TextEditingController();
     final deptCtrl = TextEditingController(text: 'Science & Mathematics');
     final desigCtrl = TextEditingController(text: 'Senior Faculty');
-    final classCtrl = TextEditingController(text: 'Class 10');
+    String assignedClass = _classList.isNotEmpty ? _classList[0] : 'Class 10-A';
     final phoneCtrl = TextEditingController(text: '+91 9876543210');
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add Faculty Member', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Full Name *', hintText: 'Prof. / Dr. / Mrs.')),
-              const SizedBox(height: 8),
-              TextField(controller: emailCtrl, decoration: const InputDecoration(labelText: 'Email Address *', hintText: 'teacher@edu.in')),
-              const SizedBox(height: 8),
-              TextField(controller: deptCtrl, decoration: const InputDecoration(labelText: 'Department')),
-              const SizedBox(height: 8),
-              TextField(controller: desigCtrl, decoration: const InputDecoration(labelText: 'Designation')),
-              const SizedBox(height: 8),
-              TextField(controller: classCtrl, decoration: const InputDecoration(labelText: 'Assigned Class')),
-              const SizedBox(height: 8),
-              TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: 'Phone Number')),
-            ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDState) => AlertDialog(
+          title: const Text('Add Faculty Member', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Full Name *', hintText: 'Prof. / Dr. / Mrs.')),
+                const SizedBox(height: 8),
+                TextField(controller: emailCtrl, decoration: const InputDecoration(labelText: 'Email Address *', hintText: 'teacher@edu.in')),
+                const SizedBox(height: 8),
+                TextField(controller: deptCtrl, decoration: const InputDecoration(labelText: 'Department')),
+                const SizedBox(height: 8),
+                TextField(controller: desigCtrl, decoration: const InputDecoration(labelText: 'Designation')),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  initialValue: assignedClass,
+                  decoration: const InputDecoration(labelText: 'Assigned Class Division'),
+                  items: _classList.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                  onChanged: (v) {
+                    if (v != null) setDState(() => assignedClass = v);
+                  },
+                ),
+                const SizedBox(height: 8),
+                TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: 'Phone Number')),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.navyDark, foregroundColor: Colors.white),
+              onPressed: () async {
+                if (nameCtrl.text.trim().isEmpty || emailCtrl.text.trim().isEmpty) return;
+                try {
+                  await ApiService().createTeacher({
+                    'full_name': nameCtrl.text.trim(),
+                    'email': emailCtrl.text.trim(),
+                    'department': deptCtrl.text.trim(),
+                    'designation': desigCtrl.text.trim(),
+                    'assigned_class': assignedClass,
+                    'phone': phoneCtrl.text.trim(),
+                  });
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  _loadAllData();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Faculty ${nameCtrl.text.trim()} added successfully!'), backgroundColor: AppTheme.emerald),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed: $e'), backgroundColor: AppTheme.rose),
+                    );
+                  }
+                }
+              },
+              child: const Text('Add Faculty'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.navyDark, foregroundColor: Colors.white),
-            onPressed: () async {
-              if (nameCtrl.text.trim().isEmpty || emailCtrl.text.trim().isEmpty) return;
-              try {
-                await ApiService().createTeacher({
-                  'full_name': nameCtrl.text.trim(),
-                  'email': emailCtrl.text.trim(),
-                  'department': deptCtrl.text.trim(),
-                  'designation': desigCtrl.text.trim(),
-                  'assigned_class': classCtrl.text.trim(),
-                  'phone': phoneCtrl.text.trim(),
-                });
-                if (ctx.mounted) Navigator.pop(ctx);
-                _loadAllData();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Faculty ${nameCtrl.text.trim()} added successfully!'), backgroundColor: AppTheme.emerald),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed: $e'), backgroundColor: AppTheme.rose),
-                  );
-                }
-              }
-            },
-            child: const Text('Add Faculty'),
-          ),
-        ],
       ),
     );
   }
 
   void _showPromoteDialog() {
-    final srcCtrl = TextEditingController(text: 'Class 9');
-    final tgtCtrl = TextEditingController(text: 'Class 10');
+    String srcClass = _classList.contains('Class 9-A') ? 'Class 9-A' : (_classList.isNotEmpty ? _classList[0] : 'Class 9-A');
+    String tgtClass = _classList.contains('Class 10-A') ? 'Class 10-A' : (_classList.isNotEmpty ? _classList[0] : 'Class 10-A');
     final yearCtrl = TextEditingController(text: '2027-2028');
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.upgrade_rounded, color: AppTheme.gold),
-            SizedBox(width: 8),
-            Text('Promote Class Batch', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Promoting a class moves all its enrolled students into the next academic grade and updates their LMS dashboards immediately.',
-              style: TextStyle(fontSize: 12, color: AppTheme.slate600),
-            ),
-            const SizedBox(height: 14),
-            TextField(controller: srcCtrl, decoration: const InputDecoration(labelText: 'Source Class *', hintText: 'e.g. Class 9')),
-            const SizedBox(height: 10),
-            TextField(controller: tgtCtrl, decoration: const InputDecoration(labelText: 'Target Promoted Class *', hintText: 'e.g. Class 10')),
-            const SizedBox(height: 10),
-            TextField(controller: yearCtrl, decoration: const InputDecoration(labelText: 'Academic Year *', hintText: '2027-2028')),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.goldDark, foregroundColor: Colors.white),
-            onPressed: () async {
-              try {
-                final res = await ApiService().shiftAcademicYear(
-                  sourceClass: srcCtrl.text.trim(),
-                  targetClass: tgtCtrl.text.trim(),
-                  targetYear: yearCtrl.text.trim(),
-                );
-                if (ctx.mounted) Navigator.pop(ctx);
-                _loadAllData();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(res['message'] ?? 'Batch promoted successfully!'), backgroundColor: AppTheme.emerald),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Promotion failed: $e'), backgroundColor: AppTheme.rose),
-                  );
-                }
-              }
-            },
-            child: const Text('Execute Batch Promotion'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.upgrade_rounded, color: AppTheme.gold),
+              SizedBox(width: 8),
+              Text('Promote Class Batch', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ],
           ),
-        ],
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Promoting a class moves all its enrolled students into the next academic grade and updates their LMS dashboards immediately.',
+                style: TextStyle(fontSize: 12, color: AppTheme.slate600),
+              ),
+              const SizedBox(height: 14),
+              DropdownButtonFormField<String>(
+                initialValue: srcClass,
+                decoration: const InputDecoration(labelText: 'Source Class Division *'),
+                items: _classList.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                onChanged: (v) {
+                  if (v != null) setDState(() => srcClass = v);
+                },
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                initialValue: tgtClass,
+                decoration: const InputDecoration(labelText: 'Target Promoted Class *'),
+                items: _classList.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                onChanged: (v) {
+                  if (v != null) setDState(() => tgtClass = v);
+                },
+              ),
+              const SizedBox(height: 10),
+              TextField(controller: yearCtrl, decoration: const InputDecoration(labelText: 'Academic Year *', hintText: '2027-2028')),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.goldDark, foregroundColor: Colors.white),
+              onPressed: () async {
+                try {
+                  final res = await ApiService().shiftAcademicYear(
+                    sourceClass: srcClass,
+                    targetClass: tgtClass,
+                    targetYear: yearCtrl.text.trim(),
+                  );
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  _loadAllData();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(res['message'] ?? 'Batch promoted successfully!'), backgroundColor: AppTheme.emerald),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Promotion failed: $e'), backgroundColor: AppTheme.rose),
+                    );
+                  }
+                }
+              },
+              child: const Text('Execute Batch Promotion'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -560,7 +599,7 @@ class _AdminNavScreenState extends State<AdminNavScreen> with SingleTickerProvid
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Live Database Connected • Changes update website and mobile instantly',
+                    'Live Database Connected • Clean Campus Instance Ready',
                     style: TextStyle(color: AppTheme.emerald.withValues(alpha: 0.9), fontSize: 11, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -569,9 +608,9 @@ class _AdminNavScreenState extends State<AdminNavScreen> with SingleTickerProvid
           ),
           const SizedBox(height: 14),
 
-          // KPI Hero Card
+          // KPI Hero Card (Responsive 0-overflow design)
           Container(
-            padding: const EdgeInsets.all(22),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               gradient: AppTheme.navyHeroGradient,
               borderRadius: BorderRadius.circular(24),
@@ -602,7 +641,7 @@ class _AdminNavScreenState extends State<AdminNavScreen> with SingleTickerProvid
                     _heroStat('STUDENTS', '${metrics['total_students'] ?? _students.length}', Icons.groups_rounded),
                     _heroStat('FACULTY', '${metrics['total_teachers'] ?? _teachers.length}', Icons.school_rounded),
                     _heroStat('PENDING', '$pending', Icons.pending_actions_rounded),
-                    _heroStat('ATTENDANCE', '${metrics['today_attendance_rate'] ?? 95}%', Icons.check_circle_rounded),
+                    _heroStat('ATTENDANCE', '${metrics['today_attendance_rate'] ?? 100}%', Icons.check_circle_rounded),
                   ],
                 ),
               ],
@@ -610,7 +649,7 @@ class _AdminNavScreenState extends State<AdminNavScreen> with SingleTickerProvid
           ),
           const SizedBox(height: 18),
 
-          // Fees Collection Bento Card
+          // Fees Collection Bento Card (Responsive)
           BentoCard(
             title: 'Fee Collection Ledger',
             subtitle: 'Live Financial Tracking',
@@ -623,19 +662,29 @@ class _AdminNavScreenState extends State<AdminNavScreen> with SingleTickerProvid
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Collected', style: TextStyle(color: AppTheme.slate400, fontSize: 11)),
-                        Text('₹${feesCollected.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppTheme.emerald)),
-                      ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Collected', style: TextStyle(color: AppTheme.slate400, fontSize: 11)),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text('₹${feesCollected.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppTheme.emerald)),
+                          ),
+                        ],
+                      ),
                     ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        const Text('Total Billed', style: TextStyle(color: AppTheme.slate400, fontSize: 11)),
-                        Text('₹${feesTotal.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppTheme.navyDark)),
-                      ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          const Text('Total Billed', style: TextStyle(color: AppTheme.slate400, fontSize: 11)),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text('₹${feesTotal.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppTheme.navyDark)),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -696,7 +745,7 @@ class _AdminNavScreenState extends State<AdminNavScreen> with SingleTickerProvid
           ),
           const SizedBox(height: 10),
           if (notices.isEmpty)
-            const Text('No circulars posted yet.', style: TextStyle(color: AppTheme.slate400, fontSize: 12))
+            const Text('No circulars posted yet. Tap "Broadcast Notice" to post one.', style: TextStyle(color: AppTheme.slate400, fontSize: 12))
           else
             ...notices.take(3).map((n) => Card(
                   margin: const EdgeInsets.only(bottom: 10),
@@ -724,36 +773,39 @@ class _AdminNavScreenState extends State<AdminNavScreen> with SingleTickerProvid
   Widget _buildStudentsTab() {
     return Column(
       children: [
-        // Filter bar
+        // Responsive Filter bar
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           color: Colors.white,
           child: Row(
             children: [
-              const Text('Class: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-              const SizedBox(width: 8),
-              DropdownButton<String>(
-                value: _selectedClassFilter,
-                underline: const SizedBox(),
-                style: const TextStyle(color: AppTheme.navyDark, fontWeight: FontWeight.bold, fontSize: 12),
-                items: ['All', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12']
-                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                    .toList(),
-                onChanged: (v) {
-                  setState(() => _selectedClassFilter = v!);
-                  _loadAllData();
-                },
+              const Text('Division: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: DropdownButton<String>(
+                  value: (['All', ..._classList].contains(_selectedClassFilter)) ? _selectedClassFilter : 'All',
+                  isExpanded: true,
+                  underline: const SizedBox(),
+                  style: const TextStyle(color: AppTheme.navyDark, fontWeight: FontWeight.bold, fontSize: 12),
+                  items: ['All', ..._classList]
+                      .map((c) => DropdownMenuItem(value: c, child: Text(c, overflow: TextOverflow.ellipsis)))
+                      .toList(),
+                  onChanged: (v) {
+                    setState(() => _selectedClassFilter = v!);
+                    _loadAllData();
+                  },
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.navyDark,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('New Student', style: TextStyle(fontSize: 11)),
+                icon: const Icon(Icons.add, size: 14),
+                label: const Text('Enroll', style: TextStyle(fontSize: 11)),
                 onPressed: _showAddStudentDialog,
               ),
             ],
@@ -762,9 +814,28 @@ class _AdminNavScreenState extends State<AdminNavScreen> with SingleTickerProvid
 
         Expanded(
           child: _students.isEmpty
-              ? const Center(child: Text('No students found for this class.', style: TextStyle(color: AppTheme.slate400)))
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.school_outlined, size: 48, color: AppTheme.slate400),
+                      const SizedBox(height: 8),
+                      Text(
+                        _selectedClassFilter == 'All' ? 'No students enrolled yet.' : 'No students found in $_selectedClassFilter.',
+                        style: const TextStyle(color: AppTheme.slate600),
+                      ),
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.navyDark, foregroundColor: Colors.white),
+                        icon: const Icon(Icons.person_add_rounded, size: 16),
+                        label: const Text('Enroll First Student'),
+                        onPressed: _showAddStudentDialog,
+                      ),
+                    ],
+                  ),
+                )
               : ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(14),
                   itemCount: _students.length,
                   itemBuilder: (ctx, i) {
                     final s = _students[i];
@@ -772,7 +843,7 @@ class _AdminNavScreenState extends State<AdminNavScreen> with SingleTickerProvid
                     final isRejected = s['status'] == 'rejected';
 
                     return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
+                      margin: const EdgeInsets.only(bottom: 10),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
@@ -799,11 +870,22 @@ class _AdminNavScreenState extends State<AdminNavScreen> with SingleTickerProvid
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(s['full_name'] ?? 'Student', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                                      Text('${s['class']} • Roll ${s['roll_no']} • ${s['student_code']}', style: const TextStyle(color: AppTheme.slate600, fontSize: 11)),
+                                      Text(
+                                        s['full_name'] ?? 'Student',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Text(
+                                        '${s['class']} • Roll ${s['roll_no']} • ${s['student_code']}',
+                                        style: const TextStyle(color: AppTheme.slate600, fontSize: 11),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ],
                                   ),
                                 ),
+                                const SizedBox(width: 6),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
@@ -880,56 +962,83 @@ class _AdminNavScreenState extends State<AdminNavScreen> with SingleTickerProvid
           ),
         ),
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: _teachers.length,
-            itemBuilder: (ctx, i) {
-              final t = _teachers[i];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: const BorderSide(color: AppTheme.slate200),
-                ),
-                child: ListTile(
-                  leading: const CircleAvatar(
-                    backgroundColor: AppTheme.navyDark,
-                    foregroundColor: AppTheme.gold,
-                    child: Icon(Icons.school, size: 20),
+          child: _teachers.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.badge_outlined, size: 48, color: AppTheme.slate400),
+                      const SizedBox(height: 8),
+                      const Text('No faculty members added yet.', style: TextStyle(color: AppTheme.slate600)),
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.navyDark, foregroundColor: Colors.white),
+                        icon: const Icon(Icons.person_add_alt_1_rounded, size: 16),
+                        label: const Text('Add First Teacher'),
+                        onPressed: _showAddTeacherDialog,
+                      ),
+                    ],
                   ),
-                  title: Text(t['full_name'] ?? 'Faculty', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  subtitle: Text('${t['designation']} • ${t['department']}\nAssigned: ${t['assigned_class'] ?? "Unassigned"} • Phone: ${t['phone'] ?? "N/A"}', style: const TextStyle(fontSize: 11, color: AppTheme.slate600)),
-                  isThreeLine: true,
-                  trailing: IconButton(
-                    icon: const Icon(Icons.edit_calendar_rounded, color: AppTheme.navyMedium),
-                    tooltip: 'Assign Class',
-                    onPressed: () {
-                      final cCtrl = TextEditingController(text: t['assigned_class'] ?? 'Class 10');
-                      showDialog(
-                        context: context,
-                        builder: (ctx2) => AlertDialog(
-                          title: Text('Assign Class to ${t['full_name']}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                          content: TextField(controller: cCtrl, decoration: const InputDecoration(labelText: 'Assigned Class')),
-                          actions: [
-                            TextButton(onPressed: () => Navigator.pop(ctx2), child: const Text('Cancel')),
-                            ElevatedButton(
-                              onPressed: () async {
-                                await ApiService().assignTeacherClass(t['id'], cCtrl.text.trim());
-                                if (ctx2.mounted) Navigator.pop(ctx2);
-                                _loadAllData();
-                              },
-                              child: const Text('Save'),
-                            ),
-                          ],
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(14),
+                  itemCount: _teachers.length,
+                  itemBuilder: (ctx, i) {
+                    final t = _teachers[i];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: const BorderSide(color: AppTheme.slate200),
+                      ),
+                      child: ListTile(
+                        leading: const CircleAvatar(
+                          backgroundColor: AppTheme.navyDark,
+                          foregroundColor: AppTheme.gold,
+                          child: Icon(Icons.school, size: 20),
                         ),
-                      );
-                    },
-                  ),
+                        title: Text(t['full_name'] ?? 'Faculty', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        subtitle: Text('${t['designation']} • ${t['department']}\nAssigned: ${t['assigned_class'] ?? "Unassigned"} • Phone: ${t['phone'] ?? "N/A"}', style: const TextStyle(fontSize: 11, color: AppTheme.slate600)),
+                        isThreeLine: true,
+                        trailing: IconButton(
+                          icon: const Icon(Icons.edit_calendar_rounded, color: AppTheme.navyMedium),
+                          tooltip: 'Assign Class Division',
+                          onPressed: () {
+                            String assigned = t['assigned_class'] ?? (_classList.isNotEmpty ? _classList[0] : 'Class 10-A');
+                            showDialog(
+                              context: context,
+                              builder: (ctx2) => StatefulBuilder(
+                                builder: (ctx2, setAS) => AlertDialog(
+                                  title: Text('Assign Class to ${t['full_name']}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                                  content: DropdownButtonFormField<String>(
+                                    initialValue: _classList.contains(assigned) ? assigned : _classList[0],
+                                    decoration: const InputDecoration(labelText: 'Assigned Division'),
+                                    items: _classList.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                                    onChanged: (v) {
+                                      if (v != null) setAS(() => assigned = v);
+                                    },
+                                  ),
+                                  actions: [
+                                    TextButton(onPressed: () => Navigator.pop(ctx2), child: const Text('Cancel')),
+                                    ElevatedButton(
+                                      onPressed: () async {
+                                        await ApiService().assignTeacherClass(t['id'], assigned);
+                                        if (ctx2.mounted) Navigator.pop(ctx2);
+                                        _loadAllData();
+                                      },
+                                      child: const Text('Save'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
-          ),
         ),
       ],
     );
@@ -976,11 +1085,11 @@ class _AdminNavScreenState extends State<AdminNavScreen> with SingleTickerProvid
         ),
         const SizedBox(height: 20),
 
-        const SectionHeader(title: 'Class Cohorts & Student Distribution'),
+        const SectionHeader(title: 'Class Cohorts & Distribution'),
         const SizedBox(height: 10),
 
         if (classes.isEmpty)
-          const Text('No classes enrolled yet.', style: TextStyle(color: AppTheme.slate400))
+          const Text('No classes populated yet. Enroll students to see cohort distribution.', style: TextStyle(color: AppTheme.slate400))
         else
           ...classes.map((c) => Card(
                 margin: const EdgeInsets.only(bottom: 10),
@@ -1074,13 +1183,22 @@ class _AdminNavScreenState extends State<AdminNavScreen> with SingleTickerProvid
   }
 
   Widget _heroStat(String label, String value, IconData icon) {
-    return Column(
-      children: [
-        Icon(icon, color: AppTheme.gold, size: 20),
-        const SizedBox(height: 4),
-        Text(value, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-        Text(label, style: const TextStyle(color: Colors.white60, fontSize: 9, fontWeight: FontWeight.w600)),
-      ],
+    return Expanded(
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: AppTheme.gold, size: 20),
+              const SizedBox(height: 4),
+              Text(value, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(label, style: const TextStyle(color: Colors.white60, fontSize: 9, fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

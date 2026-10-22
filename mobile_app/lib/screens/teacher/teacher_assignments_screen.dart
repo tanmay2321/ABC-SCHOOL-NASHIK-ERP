@@ -17,13 +17,27 @@ class _TeacherAssignmentsScreenState extends State<TeacherAssignmentsScreen> {
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
   final _dueController = TextEditingController(text: '2026-10-30');
-  String _selectedClass = 'Class 10';
+  String _selectedClass = 'Class 10-A';
   String _selectedSubject = 'Mathematics';
+  List<String> _classList = ApiService.standardClasses;
 
   @override
   void initState() {
     super.initState();
-    _loadAssignments();
+    _initClasses();
+  }
+
+  Future<void> _initClasses() async {
+    final classes = await ApiService().fetchClasses();
+    if (mounted) {
+      setState(() {
+        _classList = classes;
+        if (!_classList.contains(_selectedClass)) {
+          _selectedClass = _classList.isNotEmpty ? _classList[0] : 'Class 10-A';
+        }
+      });
+      _loadAssignments();
+    }
   }
 
   Future<void> _loadAssignments() async {
@@ -73,11 +87,9 @@ class _TeacherAssignmentsScreenState extends State<TeacherAssignmentsScreen> {
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      initialValue: _selectedClass,
+                      initialValue: _classList.contains(_selectedClass) ? _selectedClass : _classList[0],
                       decoration: const InputDecoration(labelText: 'Target Class'),
-                      items: ['Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12']
-                          .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                          .toList(),
+                      items: _classList.map((c) => DropdownMenuItem(value: c, child: Text(c, overflow: TextOverflow.ellipsis))).toList(),
                       onChanged: (val) {
                         if (val != null) setMState(() => _selectedClass = val);
                       },
